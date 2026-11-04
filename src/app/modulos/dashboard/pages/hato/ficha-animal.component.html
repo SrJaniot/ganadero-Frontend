@@ -8,6 +8,49 @@
     <a routerLink="/app/hato" class="btn-primary mt-4"><app-icono nombre="vaca" clase="w-5 h-5" /> Volver al hato</a>
   </div>
 } @else {
+  <!-- FOTO (SE VE SIN SEÑAL SI YA SE BAJO UNA VEZ) -->
+  <div class="card p-3 mb-4">
+    <div class="relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-tarjeta-alta grid place-items-center">
+      @if (urlFoto) {
+        <img [src]="urlFoto" [alt]="'Foto de ' + textoAnimal" class="w-full h-full object-cover">
+      } @else {
+        <div class="text-center text-suave p-4">
+          <app-icono nombre="vaca" clase="w-16 h-16 mx-auto" />
+          <p class="m-0 mt-2 font-semibold">
+            @if (cargandoFoto) { Cargando la foto... }
+            @else if (animal.FOTO_ANIMAL) { La foto se ve cuando haya señal }
+            @else { Sin foto }
+          </p>
+        </div>
+      }
+      @if (subiendoFoto) {
+        <div class="absolute inset-0 grid place-items-center bg-black/45 text-white font-bold text-lg">
+          <span class="flex items-center gap-2"><span class="w-5 h-5 rounded-full border-2 border-white/40 border-t-white animate-spin"></span> Un momento...</span>
+        </div>
+      }
+    </div>
+
+    @if (esDuenio && activo) {
+      @if (motivoSinFoto) {
+        <button type="button" class="btn-secundario w-full mt-3" disabled><app-icono nombre="camara" clase="w-5 h-5" /> Tomar o cambiar foto</button>
+        <p class="ayuda mt-1.5 mb-0 flex items-start gap-1.5">
+          <app-icono [nombre]="enLinea ? 'celular' : 'sin-senal'" clase="w-4 h-4 shrink-0 mt-0.5" /> {{ motivoSinFoto }}
+        </p>
+      } @else {
+        <div class="grid gap-2 mt-3" [class.grid-cols-2]="animal.FOTO_ANIMAL">
+          <label class="btn-primary w-full cursor-pointer" [class.opacity-50]="subiendoFoto" [class.pointer-events-none]="subiendoFoto">
+            <app-icono nombre="camara" clase="w-5 h-5" /> {{ animal.FOTO_ANIMAL ? 'Cambiar foto' : 'Tomar foto' }}
+            <input type="file" accept="image/*" capture="environment" class="sr-only" (change)="alElegirFoto($event)" [disabled]="subiendoFoto">
+          </label>
+          @if (animal.FOTO_ANIMAL) {
+            <button type="button" class="btn-secundario w-full" (click)="quitarFoto()" [disabled]="subiendoFoto"><app-icono nombre="papelera" clase="w-5 h-5" /> Quitar foto</button>
+          }
+        </div>
+        <p class="ayuda mt-1.5 mb-0">La foto necesita señal. Se guarda también en el celular para verla en el potrero.</p>
+      }
+    }
+  </div>
+
   <!-- CABECERA: CHAPETA GRANDE, NOMBRE, CATEGORIA -->
   <div class="card p-5 mb-4">
     <div class="flex items-center gap-4">
@@ -31,6 +74,15 @@
         <app-icono nombre="pesa" clase="w-6 h-6" /> Pesar
       </a>
     }
+
+    @if (esDuenio) {
+      <div class="grid gap-2 mt-3" [class.grid-cols-2]="activo">
+        <a [routerLink]="['/app/hato', animal.UUID_ANIMAL, 'editar']" class="btn-secundario w-full"><app-icono nombre="lapiz" clase="w-5 h-5" /> Editar</a>
+        @if (activo) {
+          <button type="button" class="btn-secundario w-full text-peligro" (click)="confirmarAnular = true"><app-icono nombre="papelera" clase="w-5 h-5" /> Anular</button>
+        }
+      </div>
+    }
   </div>
 
   <div class="grid gap-4 md:grid-cols-[1fr_1.3fr] items-start">
@@ -50,19 +102,50 @@
         <dd class="m-0 font-semibold">{{ raza }}</dd>
         <dt class="text-suave">Origen</dt>
         <dd class="m-0 font-semibold">{{ origen }}</dd>
-        @if (animal.CHAPETA_MADRE) {
-          <dt class="text-suave">Madre</dt>
-          <dd class="m-0 font-semibold">{{ animal.CHAPETA_MADRE }}</dd>
-        }
-        @if (animal.NOM_LOTE) {
-          <dt class="text-suave">Lote</dt>
-          <dd class="m-0 font-semibold">{{ animal.NOM_LOTE }}</dd>
-        }
+        <dt class="text-suave">Lote</dt>
+        <dd class="m-0 font-semibold">
+          @if (nombreLote) {
+            <a [routerLink]="['/app/hato']" [queryParams]="{ lote: animal.UUID_LOTE }" class="text-primario-texto underline">{{ nombreLote }}</a>
+          } @else { Sin lote }
+        </dd>
+        <dt class="text-suave">Madre</dt>
+        <dd class="m-0 font-semibold">
+          @if (madre?.uuid) {
+            <a [routerLink]="['/app/hato', madre!.uuid]" class="text-primario-texto underline">{{ madre!.texto }}</a>
+          } @else if (madre) { {{ madre.texto }} } @else { No se sabe }
+        </dd>
+        <dt class="text-suave">Padre</dt>
+        <dd class="m-0 font-semibold">
+          @if (padre?.uuid) {
+            <a [routerLink]="['/app/hato', padre!.uuid]" class="text-primario-texto underline">{{ padre!.texto }}</a>
+          } @else if (padre) { {{ padre.texto }} } @else { No se sabe }
+        </dd>
       </dl>
     </div>
 
+    <!-- CRIAS (ES SU MADRE O SU PADRE) -->
+    @if (crias.length > 0) {
+      <div class="card p-5 md:col-start-1">
+        <h2 class="text-lg font-semibold mt-0 mb-3">{{ tituloCrias }} ({{ crias.length }})</h2>
+        <div class="grid gap-2">
+          @for (cria of crias; track cria.uuid) {
+            <a [routerLink]="['/app/hato', cria.uuid]" class="flex items-center gap-3 p-2.5 rounded-2xl border border-borde no-underline text-texto hover:border-primario active:scale-[.99] transition-all">
+              <span class="grid place-items-center min-w-[48px] h-12 px-2 rounded-xl bg-tarjeta-alta font-bold text-lg text-primario-texto shrink-0">
+                @if (cria.chapeta) { {{ cria.chapeta }} } @else { <app-icono nombre="vaca" clase="w-6 h-6" /> }
+              </span>
+              <span class="min-w-0 flex-1 leading-snug">
+                <span class="block font-bold truncate">{{ cria.nombre || (cria.chapeta ? 'Chapeta ' + cria.chapeta : 'Sin chapeta') }}</span>
+                <span class="block text-sm text-suave">{{ cria.categoria }} · {{ cria.edad }}@if (cria.estado !== 'ACTIVO') { · {{ cria.estado === 'VENDIDO' ? 'vendido' : cria.estado === 'MUERTO' ? 'murió' : 'trasladado' }}}</span>
+              </span>
+              <app-icono nombre="flecha" clase="w-5 h-5 text-suave shrink-0" />
+            </a>
+          }
+        </div>
+      </div>
+    }
+
     <!-- LINEA DE TIEMPO VERTICAL (LO MAS NUEVO ARRIBA) -->
-    <div class="card p-5">
+    <div class="card p-5 md:col-start-2 md:row-start-1 md:row-span-2">
       <h2 class="text-lg font-semibold mt-0 mb-1">Lo que le ha pasado</h2>
       <p class="ayuda mt-0 mb-4">Lo más nuevo arriba. Es lo que hay en este celular; lo de otros celulares llega al sincronizar.</p>
       <ol class="relative list-none p-0 m-0">
@@ -89,3 +172,15 @@
     </div>
   </div>
 }
+
+<!-- CONFIRMAR: ANULAR ANIMAL (SOLO REGISTROS POR ERROR) -->
+<app-confirmar-accion
+  [abierto]="confirmarAnular"
+  [titulo]="'¿Anular ' + textoAnimal + '?'"
+  descripcion="Anular es solo para un animal que se registró por error (repetido o equivocado). Sale del hato y de las cuentas."
+  aviso="Si se vendió, murió o se lo llevaron, no lo anules: eso se registra con «Salió» (llega en la fase 2). No se puede anular si tiene pesajes u otros registros, o si tiene crías."
+  palabra="ANULAR"
+  textoBoton="Anular animal"
+  [procesando]="anulando"
+  (confirmar)="anular()"
+  (cancelar)="confirmarAnular = false" />

@@ -1,14 +1,17 @@
-<!-- BUSCADOR GRANDE + ANIMAL NUEVO -->
-<div class="flex flex-col sm:flex-row gap-3 mb-4">
+<!-- BUSCADOR GRANDE + ANIMAL NUEVO + LOTES -->
+<div class="flex flex-col sm:flex-row gap-3 mb-3">
   <label class="relative flex-1">
     <span class="sr-only">Buscar por chapeta o nombre</span>
     <span class="absolute left-4 top-1/2 -translate-y-1/2 text-suave pointer-events-none"><app-icono nombre="buscar" clase="w-6 h-6" /></span>
     <input type="search" class="input-field pl-13 text-xl min-h-[58px]" placeholder="Chapeta o nombre" [(ngModel)]="busqueda"
       autocomplete="off" spellcheck="false" enterkeyhint="search">
   </label>
-  @if (puedeCrearAnimal) {
-    <a routerLink="/app/hato/nuevo" class="btn-primary min-h-[58px] text-lg"><app-icono nombre="mas" clase="w-6 h-6" /> Animal nuevo</a>
-  }
+  <div class="grid grid-cols-2 sm:flex gap-3">
+    @if (puedeCrearAnimal) {
+      <a routerLink="/app/hato/nuevo" class="btn-primary min-h-[58px] text-lg"><app-icono nombre="mas" clase="w-6 h-6" /> Animal nuevo</a>
+    }
+    <a routerLink="/app/hato/lotes" class="btn-secundario min-h-[58px] text-lg" [class.col-span-2]="!puedeCrearAnimal"><app-icono nombre="finca" clase="w-6 h-6" /> Lotes</a>
+  </div>
 </div>
 
 @if (cargando) {
@@ -24,13 +27,58 @@
     </p>
   </div>
 } @else {
+  <!-- FILTROS GRANDES: TOCAR UNO LO PRENDE; TOCARLO OTRA VEZ LO APAGA -->
+  <div class="card p-3 mb-3 grid gap-3">
+    @if (lotes.length > 0) {
+      <div>
+        <p class="label-field mb-1.5">Lote</p>
+        <div class="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+          @for (lote of lotes; track lote.uuid) {
+            <button type="button" class="shrink-0 min-h-[48px]" [class]="filtroLote === lote.uuid ? 'btn-primary' : 'btn-secundario'"
+              [attr.aria-pressed]="filtroLote === lote.uuid" (click)="elegirLote(lote.uuid)">
+              {{ lote.nombre }} <span class="opacity-75">({{ lote.animales }})</span>
+            </button>
+          }
+          @if (sinLoteCuantos > 0) {
+            <button type="button" class="shrink-0 min-h-[48px]" [class]="filtroLote === SIN_LOTE ? 'btn-primary' : 'btn-secundario'"
+              [attr.aria-pressed]="filtroLote === SIN_LOTE" (click)="elegirLote(SIN_LOTE)">
+              Sin lote <span class="opacity-75">({{ sinLoteCuantos }})</span>
+            </button>
+          }
+        </div>
+      </div>
+    }
+    <div>
+      <p class="label-field mb-1.5">Qué es</p>
+      <div class="grid grid-cols-3 gap-2">
+        @for (categoria of categorias; track categoria) {
+          <button type="button" class="min-h-[48px] px-2" [class]="filtroCategoria === categoria ? 'btn-primary' : 'btn-secundario'"
+            [attr.aria-pressed]="filtroCategoria === categoria" (click)="elegirCategoria(categoria)">{{ categoria }}</button>
+        }
+      </div>
+    </div>
+    <div>
+      <p class="label-field mb-1.5">Sexo</p>
+      <div class="grid grid-cols-2 gap-2">
+        <button type="button" class="min-h-[48px]" [class]="filtroSexo === 'H' ? 'btn-primary' : 'btn-secundario'"
+          [attr.aria-pressed]="filtroSexo === 'H'" (click)="elegirSexo('H')">Hembras</button>
+        <button type="button" class="min-h-[48px]" [class]="filtroSexo === 'M' ? 'btn-primary' : 'btn-secundario'"
+          [attr.aria-pressed]="filtroSexo === 'M'" (click)="elegirSexo('M')">Machos</button>
+      </div>
+    </div>
+  </div>
+
   <p class="ayuda mb-2">
-    {{ filtrados.length }} de {{ animales.length }} {{ animales.length === 1 ? 'animal' : 'animales' }} en la finca. Toca uno para ver su ficha.
+    {{ filtrados.length }} de {{ animales.length }} {{ animales.length === 1 ? 'animal' : 'animales' }} en la finca@if (filtroLote) {, viendo <b>{{ nombreFiltroLote }}</b>}.
+    Toca uno para ver su ficha.
+    @if (hayFiltros) { <button type="button" class="underline font-bold text-primario-texto bg-transparent border-0 p-0 cursor-pointer" (click)="limpiar()">Ver todos</button> }
   </p>
 
   @if (filtrados.length === 0) {
     <div class="card p-6 text-center">
-      <p class="font-bold m-0">Ningún animal con «{{ busqueda }}»</p>
+      <p class="font-bold m-0">
+        @if (busqueda.trim()) { Ningún animal con «{{ busqueda }}» } @else { Ningún animal con esos filtros }
+      </p>
       <button type="button" class="btn-secundario mt-3" (click)="limpiar()">Ver todos</button>
     </div>
   }
@@ -49,6 +97,9 @@
             }
           </span>
           <span class="block text-suave">{{ animal.categoria }} · {{ animal.edad }}</span>
+          @if (animal.lote) {
+            <span class="flex items-center gap-1.5 text-sm text-suave"><app-icono nombre="finca" clase="w-4 h-4" /> {{ animal.lote }}</span>
+          }
           <span class="flex items-center gap-1.5 text-sm text-suave">
             <app-icono nombre="pesa" clase="w-4 h-4" />
             @if (animal.peso !== null) { <b class="text-texto">{{ animal.peso }} kg</b> el {{ animal.fechaPeso }} } @else { Sin pesar }

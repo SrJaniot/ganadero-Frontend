@@ -1,8 +1,9 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { firstValueFrom, Observable } from 'rxjs';
 import { ConfiguracionRutasBackend } from '../config/configuracion.rutas.backend';
 import { AnimalDTO, PesajeDTO, RespuestaServerLineaTiempo } from '../Modelos/GanaderoModel';
+import { RespuestaServer } from '../Modelos/RespuestaServer.model';
 import { AlmacenLocalService } from './almacen-local';
 import { SeguridadService } from './seguridad';
 import { SincronizacionService } from './sincronizacion.service';
@@ -54,13 +55,16 @@ export class HatoService {
 
   //---------------------------------------------REGISTRAR (SIN SEÑAL)-----------------------------------------------------------
 
-  //ANIMAL NUEVO: QUEDA EN EL HATO DEL CELULAR DE INMEDIATO Y SE SUBE CUANDO HAYA SEÑAL. DEVUELVE SU UUID
-  async crearAnimal(datos: DatosAnimalNuevo): Promise<string> {
-    const uuid = crypto.randomUUID();
+  //LA FILA LOCAL DEL ANIMAL A PARTIR DEL FORMULARIO (CON LOS NOMBRES DE LOTE, MADRE Y PADRE PARA MOSTRARLOS SIN SEÑAL)
+  private async filaAnimal(uuid: string, datos: DatosAnimalNuevo): Promise<AnimalDTO> {
     const chapeta = datos.chapeta_animal?.trim().toUpperCase() || null;
-    const fila: AnimalDTO = {
+    const lote = datos.uuid_lote ? (await this.almacenLocal.lotes()).find(l => l.UUID_LOTE === datos.uuid_lote) : null;
+    const madre = datos.uuid_madre ? await this.almacenLocal.animalPorUuid(datos.uuid_madre) : null;
+    const padre = datos.uuid_padre ? await this.almacenLocal.animalPorUuid(datos.uuid_padre) : null;
+    return {
       UUID_ANIMAL: uuid,
       UUID_LOTE: datos.uuid_lote,
+      NOM_LOTE: lote?.NOM_LOTE ?? null,
       ID_RAZA: datos.id_raza,
       CHAPETA_ANIMAL: chapeta,
       NOM_ANIMAL: datos.nom_animal?.trim() || null,
@@ -68,7 +72,9 @@ export class HatoService {
       FECHA_NACIMIENTO: datos.fecha_nacimiento,
       FECHA_NACIMIENTO_ESTIMADA: datos.fecha_nacimiento_estimada,
       UUID_MADRE: datos.uuid_madre,
+      CHAPETA_MADRE: madre?.CHAPETA_ANIMAL ?? null,
       UUID_PADRE: datos.uuid_padre,
+      CHAPETA_PADRE: padre?.CHAPETA_ANIMAL ?? null,
       PADRE_EXTERNO: datos.padre_externo,
       ORIGEN_ANIMAL: datos.origen_animal,
       FECHA_INGRESO_ANIMAL: datos.origen_animal === 'NACIDO' ? datos.fecha_nacimiento : (datos.fecha_ingreso_animal ?? datos.fecha_nacimiento),
@@ -76,12 +82,85 @@ export class HatoService {
       FECHA_ULTIMO_PESAJE: null,
       ESTADO_ANIMAL: 'ACTIVO',
     };
+  }
+
+  //ANIMAL NUEVO: QUEDA EN EL HATO DEL CELULAR DE INMEDIATO Y SE SUBE CUANDO HAYA SEÑAL. DEVUELVE SU UUID
+  async crearAnimal(datos: DatosAnimalNuevo): Promise<string> {
+    const uuid = crypto.randomUUID();
+    const chapeta = datos.chapeta_animal?.trim().toUpperCase() || null;
+    const fila = await this.filaAnimal(uuid, datos);
     const etiqueta = etiquetaAnimal(fila);
     await this.almacenLocal.guardarConBandeja('ANIMAL', fila, {
       uuid, operacion: 'CREAR', datos: { ...datos, chapeta_animal: chapeta }, descripcion: `Animal nuevo: ${etiqueta}`,
     });
     this.sincronizacion.programar();
     return uuid;
+  }
+
+  //EDITAR LA FICHA (SOLO EL DUEÑO; LA BASE LO VUELVE A REVISAR AL SUBIR). datos LLEVA LA FICHA COMPLETA, COMO AL CREAR
+  //NO CAMBIA EL ESTADO NI EL PESO: ESO LO HACEN LA SALIDA, LA ANULACION Y LOS PESAJES
+  async editarAnimal(uuid: string, datos: DatosAnimalNuevo): Promise<void> {
+    const actual = await this.almacenLocal.animalPorUuid(uuid);
+    if (!actual) {
+      throw new Error('El animal no está en este celular');
+    }
+    const chapeta = datos.chapeta_animal?.trim().toUpperCase() || null;
+    const { PESO_ACTUAL_KG, FECHA_ULTIMO_PESAJE, ESTADO_ANIMAL, ...cambios } = await this.filaAnimal(uuid, datos);
+    await this.almacenLocal.cambiarConBandeja('ANIMAL', uuid, { ...cambios, CATEGORIA_ANIMAL: null }, {
+      operacion: 'EDITAR', datos: { ...datos, chapeta_animal: chapeta }, descripcion: `Cambios en la ficha de ${etiquetaAnimal({ ...actual, ...cambios, CATEGORIA_ANIMAL: null })}`,
+    });
+    this.sincronizacion.programar();
+  }
+
+  //ANULAR UN ANIMAL REGISTRADO POR ERROR (SOLO EL DUEÑO). SI SE VENDIO O MURIO, ES UNA SALIDA (FASE 2), NO UNA ANULACION
+  //SE REVISA EN EL CELULAR LO MISMO QUE REVISA LA BASE (FUN_ANULAR_ANIMAL_JSON) PARA AVISAR ANTES DE MANDARLO
+  async anularAnimal(uuid: string): Promise<void> {
+    const animal = await this.almacenLocal.animalPorUuid(uuid);
+    if (!animal) {
+      throw new Error('El animal no está en este celular');
+    }
+    const eventos = await this.almacenLocal.contarEventosActivos(uuid);
+    if (eventos > 0) {
+      throw new Error(`No se puede anular: tiene ${eventos} ${eventos === 1 ? 'registro' : 'registros'} en su línea de tiempo. Si se vendió o murió, registra la salida`);
+    }
+    const crias = await firstValueFrom(this.almacenLocal.observarCrias(uuid));
+    if (crias.length > 0) {
+      throw new Error('No se puede anular: es madre o padre de otros animales');
+    }
+    await this.almacenLocal.cambiarConBandeja('ANIMAL', uuid, { ESTADO_ANIMAL: 'ANULADO' }, {
+      operacion: 'ANULAR', datos: {}, descripcion: `Anular ${etiquetaAnimal(animal)}`,
+    });
+    this.sincronizacion.programar();
+  }
+
+  //---------------------------------------------LOTES (SIN SEÑAL)----------------------------------------------------------------
+
+  //EL VAQUERO PUEDE CREAR LOTES; RENOMBRAR Y ANULAR SOLO EL DUEÑO (LO REVISA LA BASE). DEVUELVE EL UUID DEL LOTE
+  async crearLote(nombre: string): Promise<string> {
+    const uuid = crypto.randomUUID();
+    const nom = nombre.trim().replace(/\s+/g, ' ');
+    await this.almacenLocal.guardarConBandeja('LOTE', { UUID_LOTE: uuid, NOM_LOTE: nom, ESTADO_LOTE: 'ACTIVO' }, {
+      uuid, operacion: 'CREAR', datos: { nom_lote: nom }, descripcion: `Lote nuevo: ${nom}`,
+    });
+    this.sincronizacion.programar();
+    return uuid;
+  }
+
+  async renombrarLote(uuid: string, nombre: string): Promise<void> {
+    const nom = nombre.trim().replace(/\s+/g, ' ');
+    await this.almacenLocal.cambiarConBandeja('LOTE', uuid, { NOM_LOTE: nom }, {
+      operacion: 'EDITAR', datos: { nom_lote: nom }, descripcion: `Lote renombrado: ${nom}`,
+    });
+    this.sincronizacion.programar();
+  }
+
+  //SUS ANIMALES QUEDAN SIN LOTE (EN EL CELULAR YA; EN EL SERVIDOR LO HACE FUN_ANULAR_LOTE_JSON)
+  async anularLote(uuid: string, nombre: string): Promise<void> {
+    await this.almacenLocal.cambiarConBandeja('LOTE', uuid, { ESTADO_LOTE: 'ANULADO' }, {
+      operacion: 'ANULAR', datos: {}, descripcion: `Anular el lote ${nombre}`,
+    });
+    await this.almacenLocal.quitarLoteDeAnimales(uuid);
+    this.sincronizacion.programar();
   }
 
   //PESAJE: EL PESO ACTUAL DEL ANIMAL EN EL CELULAR SE ACTUALIZA YA (EN EL SERVIDOR LO HACE EL TRIGGER TRG_PESO_ACTUAL)
@@ -111,6 +190,55 @@ export class HatoService {
   }
 
   //---------------------------------------------LECTURAS CON SEÑAL---------------------------------------------------------------
+
+  //---------------------------------------------FOTO DEL ANIMAL (CON SEÑAL)------------------------------------------------------
+
+  //SUBE LA FOTO YA REDUCIDA (reducirImagen). EL ANIMAL DEBE HABER LLEGADO AL SERVIDOR. SOLO EL DUEÑO (LO REVISA LA BASE)
+  SubirFotoAnimal(id_finca: number, uuid_animal: string, foto: Blob): Observable<RespuestaServer> {
+    const formData = new FormData();
+    formData.append('file', foto, 'foto.jpg');
+    return this.http.post<RespuestaServer>(this.url + 'SubirFotoAnimal/' + id_finca + '/' + uuid_animal, formData, { headers: this.getHeaders() });
+  }
+
+  QuitarFotoAnimal(id_finca: number, uuid_animal: string): Observable<RespuestaServer> {
+    return this.http.post<RespuestaServer>(this.url + 'QuitarFotoAnimal/' + id_finca + '/' + uuid_animal, {}, { headers: this.getHeaders() });
+  }
+
+  ObtenerFotoAnimal(id_finca: number, uuid_animal: string): Observable<Blob> {
+    return this.http.get(this.url + 'ObtenerFotoAnimal/' + id_finca + '/' + uuid_animal, { headers: this.getHeaders(), responseType: 'blob' });
+  }
+
+  //DESPUES DE SUBIRLA: LA FICHA LOCAL Y LA COPIA DE LA FOTO QUEDAN AL DIA SIN ESPERAR LA SINCRONIZACION
+  async fotoSubida(uuid_animal: string, archivo: string, foto: Blob): Promise<void> {
+    await this.almacenLocal.actualizarFotoLocal(uuid_animal, archivo);
+    await this.almacenLocal.guardarFoto(uuid_animal, archivo, foto);
+  }
+
+  async fotoQuitada(uuid_animal: string): Promise<void> {
+    await this.almacenLocal.actualizarFotoLocal(uuid_animal, null);
+    await this.almacenLocal.borrarFoto(uuid_animal);
+  }
+
+  //LA FOTO PARA MOSTRAR: PRIMERO LA DEL CELULAR; SI NO ESTA Y HAY SEÑAL, SE BAJA Y SE GUARDA. null SI NO TIENE O NO SE PUEDE
+  async obtenerFoto(id_finca: number, animal: AnimalDTO): Promise<Blob | null> {
+    if (!animal.FOTO_ANIMAL) {
+      return null;
+    }
+    const guardada = await this.almacenLocal.leerFoto(animal.UUID_ANIMAL, animal.FOTO_ANIMAL);
+    if (guardada) {
+      return guardada;
+    }
+    if (!navigator.onLine) {
+      return null;
+    }
+    try {
+      const foto = await firstValueFrom(this.ObtenerFotoAnimal(id_finca, animal.UUID_ANIMAL));
+      await this.almacenLocal.guardarFoto(animal.UUID_ANIMAL, animal.FOTO_ANIMAL, foto);
+      return foto;
+    } catch {
+      return null;
+    }
+  }
 
   //LINEA DE TIEMPO OFICIAL (CON TODOS LOS EVENTOS). SIN SEÑAL LA FICHA MUESTRA LO QUE HAY EN EL CELULAR
   ObtenerLineaTiempo(id_finca: number, uuid_animal: string): Observable<RespuestaServerLineaTiempo> {
@@ -167,4 +295,42 @@ export function ahoraLocal(): string {
 
 export function hoyLocal(): string {
   return ahoraLocal().slice(0, 10);
+}
+
+//REDUCE UNA FOTO DEL CELULAR ANTES DE SUBIRLA: LADO MAYOR DE 1280 PX, JPEG CALIDAD 0.8, FONDO BLANCO (COMO LOS COMPROBANTES DE MONSTERHOUSE)
+//UNA FOTO DE 4 MB QUEDA EN UNOS 200 KB: SUBE RAPIDO CON POCA SEÑAL Y OCUPA POCO EN EL CELULAR
+export function reducirImagen(archivo: File, ladoMaximo = 1280, calidad = 0.8): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(archivo);
+    const imagen = new Image();
+    imagen.onload = () => {
+      try {
+        const escala = Math.min(1, ladoMaximo / Math.max(imagen.naturalWidth, imagen.naturalHeight));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(imagen.naturalWidth * escala));
+        canvas.height = Math.max(1, Math.round(imagen.naturalHeight * escala));
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          URL.revokeObjectURL(url);
+          reject(new Error('sin canvas'));
+          return;
+        }
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(imagen, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(blob => {
+          URL.revokeObjectURL(url);
+          blob ? resolve(blob) : reject(new Error('sin blob'));
+        }, 'image/jpeg', calidad);
+      } catch (e) {
+        URL.revokeObjectURL(url);
+        reject(e);
+      }
+    };
+    imagen.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Esa no es una foto válida'));
+    };
+    imagen.src = url;
+  });
 }

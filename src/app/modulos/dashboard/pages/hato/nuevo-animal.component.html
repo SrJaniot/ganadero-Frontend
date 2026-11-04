@@ -1,9 +1,24 @@
 @if (!puedeCrearAnimal) {
   <div class="card p-6 text-center">
     <app-icono nombre="candado" clase="w-10 h-10 mx-auto text-suave" />
-    <p class="font-bold text-lg mt-3 mb-1">Tu rol no puede registrar animales</p>
-    <p class="text-suave m-0">Pídele al dueño de la finca que lo registre.</p>
-    <a routerLink="/app/hato" class="btn-secundario mt-4">Volver al hato</a>
+    @if (modoEditar) {
+      <p class="font-bold text-lg mt-3 mb-1">Solo el dueño puede editar la ficha</p>
+      <p class="text-suave m-0">Si algo está mal, avísale al dueño de la finca para que lo corrija.</p>
+      <a [routerLink]="rutaVolver" class="btn-secundario mt-4">Volver a la ficha</a>
+    } @else {
+      <p class="font-bold text-lg mt-3 mb-1">Tu rol no puede registrar animales</p>
+      <p class="text-suave m-0">Pídele al dueño de la finca que lo registre.</p>
+      <a routerLink="/app/hato" class="btn-secundario mt-4">Volver al hato</a>
+    }
+  </div>
+} @else if (cargando) {
+  <div class="card p-6 text-suave text-center">Buscando el animal en el celular...</div>
+} @else if (noExiste) {
+  <div class="card p-6 text-center">
+    <app-icono nombre="alerta" clase="w-10 h-10 mx-auto text-aviso" />
+    <p class="font-bold text-lg mt-3 mb-1">Este animal no está en el celular</p>
+    <p class="text-suave m-0">Puede que lo hayan anulado o que todavía no haya bajado. Sincroniza y vuelve a buscarlo.</p>
+    <a routerLink="/app/hato" class="btn-primary mt-4"><app-icono nombre="vaca" clase="w-5 h-5" /> Volver al hato</a>
   </div>
 } @else if (guardado) {
   <!-- GUARDADO: PESARLO AHORA, OTRO O VOLVER -->
@@ -19,7 +34,12 @@
   </div>
 } @else {
   <form class="max-w-xl mx-auto grid gap-5" [formGroup]="form" (ngSubmit)="guardar()" novalidate>
-    <p class="ayuda-finca m-0">Escribe la <b>chapeta</b> o un <b>nombre</b> (uno de los dos). Lo demás se puede completar después. No necesitas señal.</p>
+    @if (modoEditar) {
+      <p class="ayuda-finca m-0">Corrige lo que esté mal y toca <b>Guardar cambios</b>. No necesitas señal: los cambios se suben solos.
+        Si el animal se vendió o murió, no lo cambies aquí: eso se registra con <b>Salió</b>.</p>
+    } @else {
+      <p class="ayuda-finca m-0">Escribe la <b>chapeta</b> o un <b>nombre</b> (uno de los dos). Lo demás se puede completar después. No necesitas señal.</p>
+    }
 
     <!-- CHAPETA Y NOMBRE -->
     <div class="card p-4 grid gap-4">
@@ -117,10 +137,123 @@
       }
     </div>
 
+    <!-- MADRE (OPCIONAL): UNA HEMBRA DE LA FINCA -->
+    <div class="card p-4 grid gap-3">
+      <p class="label-field m-0">Madre (opcional)</p>
+      @if (madreElegida; as madre) {
+        <div class="flex items-center gap-3 rounded-2xl border-2 border-primario bg-tarjeta-alta p-3">
+          <span class="grid place-items-center min-w-[52px] h-13 px-2 rounded-2xl bg-tarjeta font-bold text-xl text-primario-texto shrink-0">
+            @if (madre.chapeta) { {{ madre.chapeta }} } @else { <app-icono nombre="vaca" clase="w-7 h-7" /> }
+          </span>
+          <span class="min-w-0 flex-1 leading-snug">
+            <span class="block font-bold truncate">{{ nombreAnimal(madre) }}</span>
+            <span class="block text-sm text-suave">{{ madre.categoria }} · {{ madre.edad }}</span>
+          </span>
+          <button type="button" class="btn-secundario shrink-0" (click)="quitarMadre()"><app-icono nombre="cerrar" clase="w-5 h-5" /> Quitar</button>
+        </div>
+      } @else {
+        <label class="relative block">
+          <span class="sr-only">Buscar la madre por chapeta o nombre</span>
+          <span class="absolute left-4 top-1/2 -translate-y-1/2 text-suave pointer-events-none"><app-icono nombre="buscar" clase="w-5 h-5" /></span>
+          <input type="search" class="input-field pl-12 text-lg" [(ngModel)]="buscarMadre" [ngModelOptions]="{ standalone: true }"
+            placeholder="Chapeta o nombre de la madre" autocomplete="off" spellcheck="false">
+        </label>
+        @if (buscarMadre.trim()) {
+          @if (candidatasMadre.length === 0) {
+            <p class="ayuda m-0">Ninguna hembra de la finca con «{{ buscarMadre }}».</p>
+          }
+          <div class="grid gap-2">
+            @for (h of candidatasMadre; track h.uuid) {
+              <button type="button" class="btn-secundario justify-start text-left min-h-[56px]" (click)="elegirMadre(h.uuid)">
+                <b class="min-w-[40px]">{{ h.chapeta || '—' }}</b>
+                <span class="min-w-0 flex-1 truncate">{{ h.nombre || h.categoria }} · {{ h.edad }}</span>
+                @if (madreMuyJoven(h.uuid)) { <span class="badge badge-warning">muy joven</span> }
+              </button>
+            }
+          </div>
+        } @else {
+          <p class="ayuda m-0">Escribe la chapeta o el nombre de la madre si está en la finca. Si no se sabe, déjalo así.</p>
+        }
+      }
+      @if (errores.madre) { <p class="texto-error m-0">{{ errores.madre }}</p> }
+      <p class="ayuda m-0">La madre debe tener al menos 15 meses más que la cría.</p>
+    </div>
+
+    <!-- PADRE (OPCIONAL): UN MACHO DE LA FINCA O LA PAJILLA / TORO DE AFUERA, NUNCA LOS DOS -->
+    <div class="card p-4 grid gap-3">
+      <p class="label-field m-0">Padre (opcional)</p>
+      <div class="grid grid-cols-3 gap-2">
+        <button type="button" class="px-2" [class]="v.tipoPadre === 'NINGUNO' ? 'btn-primary' : 'btn-secundario'" (click)="elegirTipoPadre('NINGUNO')">No sé</button>
+        <button type="button" class="px-2" [class]="v.tipoPadre === 'FINCA' ? 'btn-primary' : 'btn-secundario'" (click)="elegirTipoPadre('FINCA')">De la finca</button>
+        <button type="button" class="px-2" [class]="v.tipoPadre === 'AFUERA' ? 'btn-primary' : 'btn-secundario'" (click)="elegirTipoPadre('AFUERA')">De afuera</button>
+      </div>
+      @if (v.tipoPadre === 'FINCA') {
+        @if (padreElegido; as padre) {
+          <div class="flex items-center gap-3 rounded-2xl border-2 border-primario bg-tarjeta-alta p-3">
+            <span class="grid place-items-center min-w-[52px] h-13 px-2 rounded-2xl bg-tarjeta font-bold text-xl text-primario-texto shrink-0">
+              @if (padre.chapeta) { {{ padre.chapeta }} } @else { <app-icono nombre="vaca" clase="w-7 h-7" /> }
+            </span>
+            <span class="min-w-0 flex-1 leading-snug">
+              <span class="block font-bold truncate">{{ nombreAnimal(padre) }}</span>
+              <span class="block text-sm text-suave">{{ padre.categoria }} · {{ padre.edad }}</span>
+            </span>
+            <button type="button" class="btn-secundario shrink-0" (click)="quitarPadre()"><app-icono nombre="cerrar" clase="w-5 h-5" /> Quitar</button>
+          </div>
+        } @else {
+          <label class="relative block">
+            <span class="sr-only">Buscar el padre por chapeta o nombre</span>
+            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-suave pointer-events-none"><app-icono nombre="buscar" clase="w-5 h-5" /></span>
+            <input type="search" class="input-field pl-12 text-lg" [(ngModel)]="buscarPadre" [ngModelOptions]="{ standalone: true }"
+              placeholder="Chapeta o nombre del toro" autocomplete="off" spellcheck="false">
+          </label>
+          @if (buscarPadre.trim()) {
+            @if (candidatosPadre.length === 0) {
+              <p class="ayuda m-0">Ningún macho de la finca con «{{ buscarPadre }}».</p>
+            }
+            <div class="grid gap-2">
+              @for (m of candidatosPadre; track m.uuid) {
+                <button type="button" class="btn-secundario justify-start text-left min-h-[56px]" (click)="elegirPadre(m.uuid)">
+                  <b class="min-w-[40px]">{{ m.chapeta || '—' }}</b>
+                  <span class="min-w-0 flex-1 truncate">{{ m.nombre || m.categoria }} · {{ m.edad }}</span>
+                </button>
+              }
+            </div>
+          } @else {
+            <p class="ayuda m-0">Escribe la chapeta o el nombre del toro de la finca.</p>
+          }
+        }
+      } @else if (v.tipoPadre === 'AFUERA') {
+        <div>
+          <label class="label-field" for="padreExterno">Pajilla o toro de afuera</label>
+          <input id="padreExterno" type="text" class="input-field" formControlName="padreExterno" maxlength="80" autocomplete="off"
+            [class.input-error]="errores.padre" placeholder="Ej: Pajilla Gyr Lechero 1234 o el toro de don José">
+        </div>
+      } @else {
+        <p class="ayuda m-0">Si fue con inseminación, toca <b>De afuera</b> y escribe la pajilla.</p>
+      }
+      @if (errores.padre) { <p class="texto-error m-0">{{ errores.padre }}</p> }
+    </div>
+
+    <!-- LOTE (OPCIONAL) -->
+    <div class="card p-4">
+      <label class="label-field" for="lote">Lote (opcional)</label>
+      <select id="lote" class="input-field" formControlName="uuidLote" (change)="loteSugerido = ''">
+        <option value="">Sin lote</option>
+        @for (lote of lotes; track lote.UUID_LOTE) {
+          <option [value]="lote.UUID_LOTE">{{ lote.NOM_LOTE }}</option>
+        }
+      </select>
+      @if (loteSugerido && v.uuidLote) {
+        <p class="ayuda mt-1 mb-0">Le pusimos el lote de la madre (<b>{{ loteSugerido }}</b>). Puedes cambiarlo.</p>
+      } @else if (lotes.length === 0) {
+        <p class="ayuda mt-1 mb-0">Todavía no hay lotes. Se crean en <b>Hato → Lotes</b>.</p>
+      }
+    </div>
+
     <div class="flex flex-col-reverse sm:flex-row gap-3 sm:justify-end">
-      <a routerLink="/app/hato" class="btn-secundario">Cancelar</a>
+      <a [routerLink]="rutaVolver" class="btn-secundario">Cancelar</a>
       <button type="submit" class="btn-primary text-lg" [disabled]="guardando">
-        @if (guardando) { Guardando... } @else { <app-icono nombre="check" clase="w-6 h-6" /> Guardar animal }
+        @if (guardando) { Guardando... } @else { <app-icono nombre="check" clase="w-6 h-6" /> {{ modoEditar ? 'Guardar cambios' : 'Guardar animal' }} }
       </button>
     </div>
   </form>

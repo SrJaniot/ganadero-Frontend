@@ -17,6 +17,8 @@ export interface AnimalVista {
   fechaPeso: string | null;
   pendiente: boolean;
   estado: string;
+  uuidLote: string | null;
+  lote: string | null;
   textoBusqueda: string;
 }
 
@@ -33,6 +35,8 @@ export function aVista(a: AnimalDTO): AnimalVista {
     fechaPeso: a.FECHA_ULTIMO_PESAJE ? fechaLegible(a.FECHA_ULTIMO_PESAJE) : null,
     pendiente: !!a._pendiente,
     estado: a.ESTADO_ANIMAL,
+    uuidLote: a.UUID_LOTE,
+    lote: a.UUID_LOTE ? (a.NOM_LOTE ?? null) : null,
     textoBusqueda: `${a.CHAPETA_ANIMAL ?? ''} ${a.NOM_ANIMAL ?? ''}`.toLowerCase(),
   };
 }

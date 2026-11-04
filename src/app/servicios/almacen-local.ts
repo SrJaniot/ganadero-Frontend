@@ -40,6 +40,7 @@ class BaseFinca extends Dexie {
   personas!: Table<any, string>;
   bandeja!: Table<RegistroBandeja, number>;
   meta!: Table<{ clave: string; valor: any }, string>;
+  fotos!: Table<{ uuid: string; archivo: string; foto: Blob }, string>;
 
   constructor(nombre: string) {
     super(nombre);
@@ -60,6 +61,10 @@ class BaseFinca extends Dexie {
       personas: 'ID_USUARIO',
       bandeja: '++orden, uuid, estado',
       meta: 'clave',
+    });
+    //VERSION 2 (FASE 1): FOTOS DE LOS ANIMALES GUARDADAS EN EL CELULAR PARA VERLAS SIN SEÑAL (archivo = NOMBRE EN EL SERVIDOR)
+    this.version(2).stores({
+      fotos: 'uuid',
     });
   }
 }
@@ -102,6 +107,22 @@ export class AlmacenLocalService {
       await db.table(tabla).put({ ...fila, _pendiente: true });
       await db.bandeja.add({ ...registro, tipo, estado: 'PENDIENTE', fechaCreacion: new Date().toISOString() });
     });
+  }
+
+  //EDITAR O ANULAR SIN SEÑAL: SE CAMBIA LA FILA LOCAL (QUEDA _pendiente) Y EL CAMBIO VA A LA BANDEJA, EN UNA TRANSACCION
+  //EN EL SERVIDOR GANA EL ULTIMO QUE SINCRONIZA (PLAN_GANADERO.md, SECCION 4.4)
+  async cambiarConBandeja(tipo: TipoRegistro, uuid: string, cambiosFila: any, registro: Omit<RegistroBandeja, 'orden' | 'estado' | 'fechaCreacion' | 'tipo' | 'uuid'>): Promise<void> {
+    const { tabla } = TABLA_POR_TIPO[tipo];
+    const db = this.db;
+    await db.transaction('rw', db.table(tabla), db.bandeja, async () => {
+      await db.table(tabla).update(uuid, { ...cambiosFila, _pendiente: true });
+      await db.bandeja.add({ ...registro, uuid, tipo, estado: 'PENDIENTE', fechaCreacion: new Date().toISOString() });
+    });
+  }
+
+  //AL ANULAR UN LOTE SIN SEÑAL, SUS ANIMALES QUEDAN SIN LOTE EN EL CELULAR (LA BASE HACE LO MISMO AL SUBIR)
+  async quitarLoteDeAnimales(uuidLote: string): Promise<void> {
+    await this.db.animales.filter(a => a.UUID_LOTE === uuidLote).modify({ UUID_LOTE: null, NOM_LOTE: null });
   }
 
   //---------------------------------------------BANDEJA DE SALIDA----------------------------------------------------------------
@@ -154,6 +175,8 @@ export class AlmacenLocalService {
   }
 
   //DESCARTA UN RECHAZADO: SALE DE LA BANDEJA Y, SI ERA UN REGISTRO NUEVO, TAMBIEN DE LA COPIA LOCAL (EL SERVIDOR NUNCA LO TUVO)
+  //SI ERA UNA EDICION O UNA ANULACION, LA FILA LOCAL TIENE CAMBIOS QUE EL SERVIDOR NO ACEPTO: SE BORRA LA MARCA PARA QUE
+  //LA PROXIMA SINCRONIZACION BAJE LA FINCA COMPLETA Y LA FILA VUELVA A COMO ESTA EN EL SERVIDOR
   async descartar(orden: number): Promise<void> {
     const db = this.db;
     const registro = await db.bandeja.get(orden);
@@ -168,8 +191,16 @@ export class AlmacenLocalService {
         if (fila?._pendiente) {
           await db.table(tabla).where(llave).equals(registro.uuid).delete();
         }
+      } else {
+        const otros = await db.bandeja.where('uuid').equals(registro.uuid).count();
+        if (otros === 0) {
+          await db.table(tabla).update(registro.uuid, { _pendiente: false });
+        }
       }
     });
+    if (registro.operacion !== 'CREAR') {
+      await db.meta.delete('MARCA');
+    }
   }
 
   //---------------------------------------------BAJAR CAMBIOS--------------------------------------------------------------------
@@ -223,6 +254,63 @@ export class AlmacenLocalService {
 
   animalPorUuid(uuid: string): Promise<AnimalDTO | undefined> {
     return this.db.animales.get(uuid);
+  }
+
+  //UN SOLO ANIMAL, QUE SE ACTUALIZA SOLO (LA FICHA)
+  observarAnimal(uuid: string): Observable<AnimalDTO | undefined> {
+    const db = this.db;
+    return from(liveQuery(() => db.animales.get(uuid)));
+  }
+
+  //LAS CRIAS DE UN ANIMAL (ES SU MADRE O SU PADRE)
+  observarCrias(uuid: string): Observable<AnimalDTO[]> {
+    const db = this.db;
+    return from(liveQuery(async () => (await db.animales.toArray())
+      .filter(a => a.ESTADO_ANIMAL !== 'ANULADO' && (a.UUID_MADRE === uuid || a.UUID_PADRE === uuid))
+      .sort((a, b) => b.FECHA_NACIMIENTO.localeCompare(a.FECHA_NACIMIENTO))));
+  }
+
+  //LOS LOTES ACTIVOS CON CUANTOS ANIMALES ACTIVOS TIENE CADA UNO
+  observarLotes(): Observable<(LoteDTO & { ANIMALES_ACTIVOS: number })[]> {
+    const db = this.db;
+    return from(liveQuery(async () => {
+      const lotes = (await db.lotes.toArray()).filter(l => l.ESTADO_LOTE === 'ACTIVO');
+      const animales = (await db.animales.toArray()).filter(a => a.ESTADO_ANIMAL === 'ACTIVO');
+      return lotes
+        .map(l => ({ ...l, ANIMALES_ACTIVOS: animales.filter(a => a.UUID_LOTE === l.UUID_LOTE).length }))
+        .sort((a, b) => a.NOM_LOTE.localeCompare(b.NOM_LOTE));
+    }));
+  }
+
+  //EVENTOS ACTIVOS DE UN ANIMAL EN EL CELULAR (PARA AVISAR ANTES DE ANULARLO: LA BASE NO DEJA ANULAR SI TIENE REGISTROS)
+  async contarEventosActivos(uuid: string): Promise<number> {
+    const db = this.db;
+    let total = (await db.pesajes.where('UUID_ANIMAL').equals(uuid).toArray()).filter(p => p.ESTADO_PESAJE === 'ACTIVO').length;
+    for (const tabla of ['vacunaciones', 'servicios', 'palpaciones', 'partos', 'ordenos', 'salidas']) {
+      total += (await db.table(tabla).where('UUID_ANIMAL').equals(uuid).toArray()).filter((f: any) => Object.keys(f).some(k => k.startsWith('ESTADO_') && f[k] === 'ACTIVO')).length;
+    }
+    return total;
+  }
+
+  //---------------------------------------------FOTOS GUARDADAS EN EL CELULAR----------------------------------------------------
+
+  //LA FOTO GUARDADA SOLO SIRVE SI ES LA MISMA QUE DICE EL ANIMAL (SI EL DUEÑO LA CAMBIO, archivo YA NO COINCIDE)
+  async leerFoto(uuid: string, archivo: string): Promise<Blob | null> {
+    const guardada = await this.db.fotos.get(uuid);
+    return guardada && guardada.archivo === archivo ? guardada.foto : null;
+  }
+
+  guardarFoto(uuid: string, archivo: string, foto: Blob): Promise<string> {
+    return this.db.fotos.put({ uuid, archivo, foto });
+  }
+
+  borrarFoto(uuid: string): Promise<void> {
+    return this.db.fotos.delete(uuid);
+  }
+
+  //CUANDO LA FOTO SE SUBE O SE QUITA CON SEÑAL, LA FICHA LOCAL QUEDA AL DIA SIN ESPERAR LA PROXIMA SINCRONIZACION
+  actualizarFotoLocal(uuid: string, archivo: string | null): Promise<number> {
+    return this.db.animales.update(uuid, { FOTO_ANIMAL: archivo });
   }
 
   //BUSCA POR CHAPETA SIN IMPORTAR MAYUSCULAS (LA BASE LA GUARDA EN MAYUSCULAS)

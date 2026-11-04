@@ -1,0 +1,100 @@
+<div class="max-w-xl mx-auto grid gap-4">
+  <a routerLink="/app/hato" class="btn-secundario self-start"><app-icono nombre="vaca" clase="w-5 h-5" /> Volver al hato</a>
+
+  <p class="ayuda-finca m-0">
+    Un <b>lote</b> es un grupo de animales que andan juntos: las de ordeño, las horras, el levante, la ceba...
+    Toca un lote para ver sus animales. Para cambiar a un animal de lote, entra a su ficha y toca <b>Editar</b>. No necesitas señal.
+  </p>
+
+  <!-- LOTE NUEVO -->
+  @if (puedeCrear) {
+    <form class="card p-4 grid gap-3" [formGroup]="nuevoForm" (ngSubmit)="crear()" novalidate>
+      <label class="label-field m-0" for="nombreLote">Lote nuevo</label>
+      <input id="nombreLote" type="text" class="input-field text-lg" formControlName="nombre" maxlength="60" autocomplete="off"
+        placeholder="Ej: Vacas de ordeño" [class.input-error]="errorNuevo" (input)="errorNuevo = ''">
+      @if (errorNuevo) { <p class="texto-error m-0">{{ errorNuevo }}</p> }
+      <button type="submit" class="btn-primary text-lg min-h-[58px]" [disabled]="guardando">
+        @if (guardando && !renombrando) { Guardando... } @else { <app-icono nombre="mas" clase="w-6 h-6" /> Crear lote }
+      </button>
+    </form>
+  }
+
+  @if (cargando) {
+    <div class="card p-6 text-suave text-center">Buscando los lotes en el celular...</div>
+  } @else if (errorCarga) {
+    <div class="aviso-error">No se pudieron leer los lotes del celular. Cierra la app y vuelve a abrirla.</div>
+  } @else if (lotes.length === 0) {
+    <div class="card p-6 text-center">
+      <app-icono nombre="finca" clase="w-12 h-12 mx-auto text-suave" />
+      <p class="text-lg font-bold mt-3 mb-1">Todavía no hay lotes</p>
+      <p class="text-suave m-0">
+        @if (puedeCrear) { Escribe el nombre arriba y toca <b>Crear lote</b>. } @else { Cuando el dueño cree los lotes y sincronices, aparecen aquí. }
+      </p>
+    </div>
+  } @else {
+    <p class="ayuda m-0">{{ lotes.length }} {{ lotes.length === 1 ? 'lote' : 'lotes' }} en la finca.</p>
+    <div class="grid gap-3">
+      @for (lote of lotes; track lote.uuid) {
+        <div class="card p-2">
+          <a [routerLink]="['/app/hato']" [queryParams]="{ lote: lote.uuid }"
+            class="flex items-center gap-4 p-2 rounded-2xl no-underline text-texto hover:bg-tarjeta-alta active:scale-[.99] transition-all">
+            <span class="grid place-items-center min-w-[64px] h-16 px-2 rounded-2xl bg-tarjeta-alta font-bold text-2xl text-primario-texto shrink-0">
+              {{ lote.animales }}
+            </span>
+            <span class="min-w-0 flex-1 leading-snug">
+              <span class="flex flex-wrap items-center gap-2">
+                <span class="font-bold text-lg break-words">{{ lote.nombre }}</span>
+                @if (lote.pendiente) {
+                  <span class="badge badge-warning"><app-icono nombre="celular" clase="w-3.5 h-3.5" /> por subir</span>
+                }
+              </span>
+              <span class="block text-suave">{{ lote.animales === 0 ? 'Sin animales' : lote.animales === 1 ? '1 animal' : lote.animales + ' animales' }}</span>
+            </span>
+            <app-icono nombre="flecha" clase="w-5 h-5 text-suave shrink-0" />
+          </a>
+          @if (esDuenio) {
+            <div class="grid grid-cols-2 gap-2 px-2 pb-2 pt-1">
+              <button type="button" class="btn-secundario" (click)="abrirRenombrar(lote)"><app-icono nombre="lapiz" clase="w-5 h-5" /> Renombrar</button>
+              <button type="button" class="btn-secundario text-peligro" (click)="pedirAnular(lote)"><app-icono nombre="papelera" clase="w-5 h-5" /> Anular</button>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
+</div>
+
+<!-- MODAL: RENOMBRAR LOTE -->
+@if (renombrando) {
+  <div class="modal-centro" (click)="cerrarRenombrar()">
+    <form class="modal-caja" (click)="$event.stopPropagation()" [formGroup]="renombrarForm" (ngSubmit)="guardarNombre()" novalidate
+      role="dialog" aria-modal="true" aria-label="Renombrar lote">
+      <div class="flex items-center gap-3 mb-4">
+        <h2 class="text-xl font-semibold flex-1">Renombrar el lote</h2>
+        <button type="button" class="btn-icono" (click)="cerrarRenombrar()" aria-label="Cerrar"><app-icono nombre="cerrar" clase="w-5 h-5" /></button>
+      </div>
+      <label class="label-field" for="nombreRenombrar">Nombre nuevo</label>
+      <input id="nombreRenombrar" type="text" class="input-field text-lg" formControlName="nombre" maxlength="60" autocomplete="off"
+        [class.input-error]="errorRenombrar" (input)="errorRenombrar = ''">
+      @if (errorRenombrar) { <p class="texto-error">{{ errorRenombrar }}</p> }
+      <p class="ayuda mt-1 mb-0">Los animales siguen en el lote; solo cambia el nombre.</p>
+      <div class="flex justify-end gap-2.5 mt-5">
+        <button type="button" class="btn-secondary" (click)="cerrarRenombrar()" [disabled]="guardando">Cancelar</button>
+        <button type="submit" class="btn-primary" [disabled]="guardando">
+          @if (guardando) { Guardando... } @else { <app-icono nombre="check" clase="w-5 h-5" /> Guardar }
+        </button>
+      </div>
+    </form>
+  </div>
+}
+
+<!-- CONFIRMAR: ANULAR LOTE -->
+<app-confirmar-accion
+  [abierto]="!!porAnular"
+  [titulo]="'¿Anular el lote «' + (porAnular?.nombre ?? '') + '»?'"
+  [descripcion]="descripcionAnular"
+  aviso="Los animales no se borran: quedan sin lote y puedes pasarlos a otro desde su ficha."
+  textoBoton="Anular lote"
+  [procesando]="anulando"
+  (confirmar)="anular()"
+  (cancelar)="porAnular = null" />
