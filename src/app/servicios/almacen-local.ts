@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import Dexie, { liveQuery, Table } from 'dexie';
 import { from, Observable } from 'rxjs';
-import { AnimalDTO, CambiosDTO, LoteDTO, PesajeDTO, RazaDTO, RegistroBandeja, ResultadoRegistro, TipoRegistro, VacunaDTO } from '../Modelos/GanaderoModel';
+import { AnimalDTO, CambiosDTO, EventosAnimal, LoteDTO, OrdenoDTO, PartoDTO, PesajeDTO, RazaDTO, RegistroBandeja, ResultadoRegistro, ServicioDTO, TipoRegistro, VacunaDTO } from '../Modelos/GanaderoModel';
 
 // ALMACEN LOCAL DE GANADERO (DEXIE SOBRE INDEXEDDB). ES EL UNICO ARCHIVO QUE TOCA INDEXEDDB (DECISION DEL 22/10/2026)
 // UNA BASE POR FINCA ("ganadero-finca-<ID_FINCA>") CON DOS PARTES:
@@ -118,6 +118,25 @@ export class AlmacenLocalService {
       await db.table(tabla).update(uuid, { ...cambiosFila, _pendiente: true });
       await db.bandeja.add({ ...registro, uuid, tipo, estado: 'PENDIENTE', fechaCreacion: new Date().toISOString() });
     });
+  }
+
+  //VARIAS FILAS Y UN SOLO REGISTRO DE LA BANDEJA EN UNA TRANSACCION (EL PARTO: LA CRIA Y EL PARTO ENTRAN JUNTOS O NINGUNO,
+  //IGUAL QUE EN LA BASE). LA BANDEJA LLEVA SOLO EL PARTO: LA BASE CREA LA CRIA CON EL UUID QUE MANDA EL CELULAR
+  async guardarVariasConBandeja(filas: { tipo: TipoRegistro; fila: any }[], tipoRegistro: TipoRegistro, registro: Omit<RegistroBandeja, 'orden' | 'estado' | 'fechaCreacion' | 'tipo'>): Promise<void> {
+    const db = this.db;
+    const tablas = [...new Set(filas.map(f => TABLA_POR_TIPO[f.tipo].tabla))].map(t => db.table(t));
+    await db.transaction('rw', [...tablas, db.bandeja], async () => {
+      for (const { tipo, fila } of filas) {
+        await db.table(TABLA_POR_TIPO[tipo].tabla).put({ ...fila, _pendiente: true });
+      }
+      await db.bandeja.add({ ...registro, tipo: tipoRegistro, estado: 'PENDIENTE', fechaCreacion: new Date().toISOString() });
+    });
+  }
+
+  //CAMBIOS EN LA FICHA LOCAL QUE HACE UN EVENTO (ESTADO POR UNA SALIDA, PESO DE LA CRIA). EN EL SERVIDOR LOS HACEN LOS TRIGGERS
+  //NO VAN A LA BANDEJA: AL SINCRONIZAR, LA BAJADA TRAE LA FICHA OFICIAL
+  actualizarAnimalLocal(uuid: string, cambios: Partial<AnimalDTO>): Promise<number> {
+    return this.db.animales.update(uuid, cambios);
   }
 
   //AL ANULAR UN LOTE SIN SEÑAL, SUS ANIMALES QUEDAN SIN LOTE EN EL CELULAR (LA BASE HACE LO MISMO AL SUBIR)
@@ -283,6 +302,11 @@ export class AlmacenLocalService {
   }
 
   //EVENTOS ACTIVOS DE UN ANIMAL EN EL CELULAR (PARA AVISAR ANTES DE ANULARLO: LA BASE NO DEJA ANULAR SI TIENE REGISTROS)
+  //LOS PARTOS ACTIVOS DE UNA HEMBRA (PARA SABER SI ES VACA Y PARA LA REGLA DE LOS DIAS ENTRE PARTOS)
+  partosDe(uuid: string): Promise<PartoDTO[]> {
+    return this.db.partos.where('UUID_ANIMAL').equals(uuid).toArray().then(l => l.filter(p => p.ESTADO_PARTO === 'ACTIVO'));
+  }
+
   async contarEventosActivos(uuid: string): Promise<number> {
     const db = this.db;
     let total = (await db.pesajes.where('UUID_ANIMAL').equals(uuid).toArray()).filter(p => p.ESTADO_PESAJE === 'ACTIVO').length;
@@ -290,6 +314,48 @@ export class AlmacenLocalService {
       total += (await db.table(tabla).where('UUID_ANIMAL').equals(uuid).toArray()).filter((f: any) => Object.keys(f).some(k => k.startsWith('ESTADO_') && f[k] === 'ACTIVO')).length;
     }
     return total;
+  }
+
+  //---------------------------------------------EVENTOS (FASE 2)----------------------------------------------------------------
+
+  //TODO LO ACTIVO QUE LE HA PASADO A UN ANIMAL, SE ACTUALIZA SOLO (LINEA DE TIEMPO DE LA FICHA SIN SEÑAL)
+  observarEventosDeAnimal(uuid: string): Observable<EventosAnimal> {
+    const db = this.db;
+    const activos = async (tabla: string, estado: string) =>
+      (await db.table(tabla).where('UUID_ANIMAL').equals(uuid).toArray()).filter((f: any) => f[estado] === 'ACTIVO');
+    return from(liveQuery(async () => ({
+      pesajes: await activos('pesajes', 'ESTADO_PESAJE'),
+      vacunaciones: await activos('vacunaciones', 'ESTADO_VACUNACION'),
+      servicios: await activos('servicios', 'ESTADO_SERVICIO'),
+      palpaciones: await activos('palpaciones', 'ESTADO_PALPACION'),
+      partos: await activos('partos', 'ESTADO_PARTO'),
+      ordenos: await activos('ordenos', 'ESTADO_ORDENO'),
+      salidas: await activos('salidas', 'ESTADO_SALIDA'),
+    })));
+  }
+
+  //EL CATALOGO DE VACUNAS Y TRATAMIENTOS QUE BAJO DEL SERVIDOR (SOLO LOS ACTIVOS)
+  vacunas(): Promise<VacunaDTO[]> {
+    return this.db.vacunas.toArray().then(l => l.filter(v => v.ESTADO_VACUNA === 'ACTIVO').sort((a, b) => a.NOM_VACUNA.localeCompare(b.NOM_VACUNA)));
+  }
+
+  //LOS ORDEÑOS ACTIVOS DE UN DIA (AAAA-MM-DD), PARA EL ORDEÑO EN LOTE: QUE VACAS YA SE ORDEÑARON EN CADA JORNADA
+  observarOrdenosDelDia(dia: string): Observable<OrdenoDTO[]> {
+    const db = this.db;
+    return from(liveQuery(async () => (await db.ordenos.toArray()).filter(o => o.ESTADO_ORDENO === 'ACTIVO' && o.FECHA_EVENTO.slice(0, 10) === dia)));
+  }
+
+  //EL ULTIMO SERVICIO ACTIVO DEL ANIMAL ANTES DE UNA FECHA Y DESPUES DE SU ULTIMO PARTO (DE AHI SALE EL PADRE DE LA CRIA, COMO EN LA BASE)
+  async ultimoServicioAntes(uuid: string, fecha: string): Promise<ServicioDTO | null> {
+    const servicios = (await this.db.servicios.where('UUID_ANIMAL').equals(uuid).toArray()).filter(s => s.ESTADO_SERVICIO === 'ACTIVO' && s.FECHA_EVENTO < fecha);
+    const partos = (await this.db.partos.where('UUID_ANIMAL').equals(uuid).toArray()).filter(p => p.ESTADO_PARTO === 'ACTIVO' && p.FECHA_EVENTO < fecha);
+    const ultimoParto = partos.map(p => p.FECHA_EVENTO).sort().pop() ?? '';
+    return servicios.filter(s => s.FECHA_EVENTO > ultimoParto).sort((a, b) => b.FECHA_EVENTO.localeCompare(a.FECHA_EVENTO))[0] ?? null;
+  }
+
+  //UN EVENTO POR SU UUID EN SU TABLA (PARA ANULARLO)
+  eventoPorUuid(tipo: TipoRegistro, uuid: string): Promise<any> {
+    return this.db.table(TABLA_POR_TIPO[tipo].tabla).get(uuid);
   }
 
   //---------------------------------------------FOTOS GUARDADAS EN EL CELULAR----------------------------------------------------

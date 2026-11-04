@@ -1,0 +1,47 @@
+@if (seleccionado; as animal) {
+  <!-- EL ANIMAL ELEGIDO -->
+  <div class="card p-4 flex items-center gap-4">
+    <span class="grid place-items-center min-w-[64px] h-16 px-2 rounded-2xl bg-tarjeta-alta font-bold text-2xl text-primario-texto shrink-0">
+      @if (animal.CHAPETA_ANIMAL) { {{ animal.CHAPETA_ANIMAL }} } @else { <app-icono nombre="vaca" clase="w-8 h-8" /> }
+    </span>
+    <span class="min-w-0 flex-1 leading-snug">
+      <span class="block font-bold text-lg truncate">{{ animal.NOM_ANIMAL || (animal.CHAPETA_ANIMAL ? 'Chapeta ' + animal.CHAPETA_ANIMAL : 'Sin chapeta') }}</span>
+      <span class="block text-suave">{{ vista(animal).categoria }} · {{ vista(animal).edad }}</span>
+    </span>
+    <button type="button" class="btn-secundario px-4 shrink-0" (click)="cambiar()">Cambiar</button>
+  </div>
+} @else {
+  <!-- BUSCAR POR CHAPETA O NOMBRE -->
+  <div>
+    <p class="font-bold mb-2">{{ titulo }}</p>
+    <label class="relative block">
+      <span class="sr-only">Chapeta o nombre</span>
+      <span class="absolute left-4 top-1/2 -translate-y-1/2 text-suave pointer-events-none"><app-icono nombre="buscar" clase="w-7 h-7" /></span>
+      <input #campo type="text" inputmode="numeric" class="input-field pl-14 text-3xl font-bold min-h-[68px] uppercase"
+        placeholder="Chapeta" [(ngModel)]="busqueda" (keydown.enter)="alEnter()" autocomplete="off" spellcheck="false" enterkeyhint="go" maxlength="20">
+    </label>
+    <p class="ayuda mt-1.5 mb-0">Si no tiene chapeta, escribe su nombre.</p>
+    @if (cargando) {
+      <p class="text-suave mt-3 mb-0">Buscando en el celular...</p>
+    } @else if (busqueda.trim()) {
+      <div class="grid gap-2 mt-3">
+        @for (a of coincidencias; track a.UUID_ANIMAL) {
+          <button type="button" class="card p-3 flex items-center gap-3 text-left w-full" [class.cursor-pointer]="!motivo(a)" [class.opacity-60]="!!motivo(a)"
+            [disabled]="!!motivo(a)" (click)="elegir(a)">
+            <span class="grid place-items-center min-w-[56px] h-14 px-2 rounded-2xl bg-tarjeta-alta font-bold text-xl text-primario-texto shrink-0">
+              @if (a.CHAPETA_ANIMAL) { {{ a.CHAPETA_ANIMAL }} } @else { <app-icono nombre="vaca" clase="w-7 h-7" /> }
+            </span>
+            <span class="min-w-0 flex-1 leading-snug">
+              <span class="block font-bold truncate">{{ a.NOM_ANIMAL || (a.CHAPETA_ANIMAL ? 'Chapeta ' + a.CHAPETA_ANIMAL : 'Sin chapeta') }}</span>
+              <span class="block text-sm text-suave">{{ vista(a).categoria }} · {{ vista(a).edad }}</span>
+              @if (motivo(a); as m) { <span class="block text-sm font-semibold text-peligro">{{ m }}</span> }
+            </span>
+            @if (!motivo(a)) { <span class="btn-primary px-4 shrink-0 pointer-events-none">Este</span> }
+          </button>
+        } @empty {
+          <p class="ayuda m-0">Ningún animal {{ sexo === 'H' ? 'hembra ' : sexo === 'M' ? 'macho ' : '' }}activo con «{{ busqueda }}».</p>
+        }
+      </div>
+    }
+  </div>
+}

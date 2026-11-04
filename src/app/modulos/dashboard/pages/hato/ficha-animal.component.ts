@@ -2,13 +2,25 @@ import { ChangeDetectorRef, Component, inject, OnDestroy, OnInit } from '@angula
 import { ActivatedRoute, Router } from '@angular/router';
 import { finalize, Subscription } from 'rxjs';
 import { NgToastService } from 'ng-angular-popup';
-import { AnimalDTO, PesajeDTO } from '../../../../Modelos/GanaderoModel';
+import { AnimalDTO, EventosAnimal, OrdenoDTO, TipoRegistro } from '../../../../Modelos/GanaderoModel';
+import { DIAS_GESTACION, EventosService, sumarDias } from '../../../../servicios/eventos.service';
+import { sumarMeses } from '../eventos/reglas-eventos';
 import { AlmacenLocalService } from '../../../../servicios/almacen-local';
 import { FincaActualService } from '../../../../servicios/finca-actual.service';
-import { HatoService, reducirImagen } from '../../../../servicios/hato.service';
+import { categoriaAnimal, HatoService, hoyLocal, reducirImagen } from '../../../../servicios/hato.service';
 import { SeguridadService } from '../../../../servicios/seguridad';
 import { SincronizacionService } from '../../../../servicios/sincronizacion.service';
 import { AnimalVista, aVista, edadLegible, fechaLegible, nombreEstado, nombreSexo } from './hato-vista';
+
+type TipoEvento = Exclude<TipoRegistro, 'LOTE' | 'ANIMAL'>;
+
+//LO QUE SE PUEDE ANULAR DE UN PUNTO DE LA LINEA (EL ORDEÑO DEL DIA TIENE UNO POR JORNADA)
+interface Anulable {
+  tipo: TipoEvento;
+  uuid: string;
+  texto: string;          //"Anular" O "Anular la mañana"
+  descripcion: string;    //PARA EL MODAL Y EL TOAST: "el ordeño de la mañana del 4 nov 2026"
+}
 
 //UN PUNTO DE LA LINEA DE TIEMPO (LO MAS NUEVO ARRIBA)
 interface EventoVista {
@@ -20,6 +32,9 @@ interface EventoVista {
   detalle: string | null;
   cinta: boolean;
   pendiente: boolean;
+  aviso?: string | null;                              //"SIN VENDER LECHE HASTA..." (RETIRO VIGENTE)
+  enlace?: { uuid: string; texto: string } | null;    //LA CRIA DE UN PARTO
+  anulables?: Anulable[];
 }
 
 //LA MADRE O EL PADRE PARA MOSTRAR: TEXTO Y, SI ESTA EN EL CELULAR, SU UUID PARA IR A SU FICHA
@@ -50,7 +65,9 @@ export class FichaAnimalComponent implements OnInit, OnDestroy {
   noExiste = false;
   animal: AnimalDTO | null = null;
   vista: AnimalVista | null = null;
-  pesajes: PesajeDTO[] = [];
+  private eventosAnimal: EventosAnimal | null = null;
+  private animalesFinca = new Map<string, AnimalDTO>();
+  private nombresVacuna = new Map<number, string>();
   crias: AnimalVista[] = [];
   eventos: EventoVista[] = [];
   madre: Pariente | null = null;
@@ -69,6 +86,10 @@ export class FichaAnimalComponent implements OnInit, OnDestroy {
   //ANULAR
   confirmarAnular = false;
   anulando = false;
+  //ANULAR UN EVENTO DE LA LINEA DE TIEMPO (SOLO EL DUEÑO)
+  private eventosService = inject(EventosService);
+  eventoPorAnular: Anulable | null = null;
+  anulandoEvento = false;
 
   //NOMBRES DE LAS RAZAS Y LOTES DEL CELULAR (UN ANIMAL REGISTRADO SIN SEÑAL NO TRAE NOM_RAZA; UN LOTE RENOMBRADO SIN SEÑAL CAMBIA AQUI)
   private nombresRaza = new Map<number, string>();
@@ -81,6 +102,9 @@ export class FichaAnimalComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.almacenLocal.razas()
       .then(razas => { razas.forEach(r => this.nombresRaza.set(Number(r.ID_RAZA), r.NOM_RAZA)); this.cd.detectChanges(); })
+      .catch(() => { });
+    this.almacenLocal.vacunas()
+      .then(vacunas => { vacunas.forEach(v => this.nombresVacuna.set(Number(v.ID_VACUNA), v.NOM_VACUNA)); this.armarLinea(); this.cd.detectChanges(); })
       .catch(() => { });
     this.subscripciones.push(
       this.route.paramMap.subscribe(params => this.cargar(params.get('uuid') ?? '')),
@@ -104,6 +128,14 @@ export class FichaAnimalComponent implements OnInit, OnDestroy {
             this.cd.detectChanges();
           },
         }),
+        //TODOS LOS ANIMALES (TAMBIEN LOS QUE SALIERON): NOMBRES DE TOROS Y CRIAS EN LA LINEA DE TIEMPO
+        this.almacenLocal.observarAnimales(false).subscribe({
+          next: animales => {
+            this.animalesFinca = new Map(animales.map(a => [a.UUID_ANIMAL, a]));
+            this.armarLinea();
+            this.cd.detectChanges();
+          },
+        }),
       );
     } catch { }
   }
@@ -122,7 +154,8 @@ export class FichaAnimalComponent implements OnInit, OnDestroy {
     this.noExiste = false;
     this.animal = null;
     this.vista = null;
-    this.pesajes = [];
+    this.eventosAnimal = null;
+    this.eventoPorAnular = null;
     this.crias = [];
     this.madre = null;
     this.padre = null;
@@ -149,8 +182,8 @@ export class FichaAnimalComponent implements OnInit, OnDestroy {
           },
           error: () => { this.noExiste = true; this.cargando = false; this.cd.detectChanges(); },
         }),
-        this.almacenLocal.observarPesajesDeAnimal(uuid).subscribe({
-          next: pesajes => { this.pesajes = pesajes; this.armarLinea(); this.cd.detectChanges(); },
+        this.almacenLocal.observarEventosDeAnimal(uuid).subscribe({
+          next: eventos => { this.eventosAnimal = eventos; this.armarLinea(); this.cd.detectChanges(); },
         }),
         this.almacenLocal.observarCrias(uuid).subscribe({
           next: crias => { this.crias = crias.map(aVista); this.cd.detectChanges(); },
@@ -310,6 +343,43 @@ export class FichaAnimalComponent implements OnInit, OnDestroy {
     }
   }
 
+  //---------------------------------------------ANULAR UN EVENTO (DUEÑO)------------------------------------------------------
+
+  pedirAnularEvento(anulable: Anulable): void {
+    this.eventoPorAnular = anulable;
+    this.cd.detectChanges();
+  }
+
+  get avisoAnularEvento(): string {
+    const tipo = this.eventoPorAnular?.tipo;
+    if (tipo === 'SALIDA') {
+      return 'Al anular la salida, el animal vuelve al hato como si no hubiera salido.';
+    }
+    if (tipo === 'PARTO') {
+      return 'Al anular el parto también se anula la cría que nació de él. Si la cría ya tiene registros propios, primero hay que anularlos.';
+    }
+    return 'Sale de la línea de tiempo y de las cuentas. Se sube cuando haya señal.';
+  }
+
+  async anularEventoConfirmado(): Promise<void> {
+    const anulable = this.eventoPorAnular;
+    if (!anulable || this.anulandoEvento) {
+      return;
+    }
+    this.anulandoEvento = true;
+    this.cd.detectChanges();
+    try {
+      await this.eventosService.anularEvento(anulable.tipo, anulable.uuid);
+      this.toast.success(`Listo: se anuló ${anulable.descripcion}. Se sube cuando haya señal.`, 'Éxito', 5000, true, true, true);
+    } catch (e: any) {
+      this.toast.danger(e?.message || 'No se pudo anular en el celular. Inténtalo otra vez.', 'Error', 7000, true, true, true);
+    } finally {
+      this.eventoPorAnular = null;
+      this.anulandoEvento = false;
+      this.cd.detectChanges();
+    }
+  }
+
   get textoAnimal(): string {
     const v = this.vista;
     if (!v) {
@@ -357,26 +427,154 @@ export class FichaAnimalComponent implements OnInit, OnDestroy {
       .catch(() => { });
   }
 
+  //NOMBRE CORTO DE UN ANIMAL DEL CELULAR: "23 · Lucero", "Lucero" O "sin chapeta"
+  private nombreCorto(uuid: string | null): string | null {
+    const a = uuid ? this.animalesFinca.get(uuid) : null;
+    if (!a) {
+      return null;
+    }
+    return [a.CHAPETA_ANIMAL, a.NOM_ANIMAL].filter(Boolean).join(' · ') || 'sin chapeta';
+  }
+
+  private numero(valor: number | string | null | undefined): number | null {
+    if (valor === null || valor === undefined || valor === '') {
+      return null;
+    }
+    const n = Number(valor);
+    return isNaN(n) ? null : n;
+  }
+
+  //LA LINEA DE TIEMPO CON TODO LO DEL CELULAR: PESAJES, VACUNAS, SERVICIOS, PALPACIONES, PARTOS, ORDEÑOS (POR DIA) Y SALIDA
   private armarLinea(): void {
     const a = this.animal;
     if (!a) {
       this.eventos = [];
       return;
     }
-    const eventos: EventoVista[] = this.pesajes.map(p => {
-      const peso = p.PESO_KG === null || p.PESO_KG === '' ? null : Number(p.PESO_KG);
+    const ev = this.eventosAnimal;
+    const eventos: EventoVista[] = [];
+    const uno = (tipo: TipoEvento, uuid: string, descripcion: string): Anulable[] => [{ tipo, uuid, texto: 'Anular', descripcion }];
+    const hoy = hoyLocal();
+
+    //PESAJES
+    for (const p of ev?.pesajes ?? []) {
+      const peso = this.numero(p.PESO_KG);
       const cinta = p.ESTIMADO_CINTA === 'SI';
-      return {
-        clave: p.UUID_PESAJE,
-        fecha: p.FECHA_EVENTO,
-        fechaTexto: fechaLegible(p.FECHA_EVENTO, true),
-        icono: cinta ? 'cinta' : 'pesa',
-        titulo: peso !== null && !isNaN(peso) ? `Pesó ${peso} kg` : 'Pesaje',
+      eventos.push({
+        clave: p.UUID_PESAJE, fecha: p.FECHA_EVENTO, fechaTexto: fechaLegible(p.FECHA_EVENTO, true),
+        icono: 'pesa',
+        titulo: peso !== null ? `Pesó ${peso} kg` : 'Pesaje',
         detalle: [cinta ? `Con cinta: ${p.PERIMETRO_CM} cm de pecho (peso estimado)` : 'Con báscula', p.OBSERVACION_PESAJE].filter(Boolean).join(' · '),
-        cinta,
-        pendiente: !!p._pendiente,
-      };
-    });
+        cinta, pendiente: !!p._pendiente,
+        anulables: uno('PESAJE', p.UUID_PESAJE, `el pesaje del ${fechaLegible(p.FECHA_EVENTO)}`),
+      });
+    }
+
+    //VACUNAS Y TRATAMIENTOS (CON EL RETIRO DE LECHE SI SIGUE VIGENTE)
+    for (const v of ev?.vacunaciones ?? []) {
+      const nombre = this.nombresVacuna.get(Number(v.ID_VACUNA)) ?? 'Vacuna o tratamiento';
+      const retiro = v.FECHA_FIN_RETIRO && v.FECHA_FIN_RETIRO.slice(0, 10) >= hoy ? v.FECHA_FIN_RETIRO : null;
+      eventos.push({
+        clave: v.UUID_VACUNACION, fecha: v.FECHA_EVENTO, fechaTexto: fechaLegible(v.FECHA_EVENTO, true),
+        icono: 'jeringa',
+        titulo: nombre,
+        detalle: [v.DOSIS_VACUNACION ? `Dosis: ${v.DOSIS_VACUNACION}` : null,
+          v.FECHA_PROXIMA_DOSIS ? `Próxima dosis: ${fechaLegible(v.FECHA_PROXIMA_DOSIS)}` : null, v.OBSERVACION_VACUNACION].filter(Boolean).join(' · ') || null,
+        cinta: false, pendiente: !!v._pendiente,
+        aviso: retiro ? `Sin vender leche hasta el ${fechaLegible(retiro)}` : null,
+        anulables: uno('VACUNACION', v.UUID_VACUNACION, `${nombre} del ${fechaLegible(v.FECHA_EVENTO)}`),
+      });
+    }
+
+    //MONTAS E INSEMINACIONES (CON EL TORO O LA PAJILLA Y EL PARTO PROBABLE)
+    for (const s of ev?.servicios ?? []) {
+      const monta = s.TIPO_SERVICIO === 'MONTA';
+      const toro = s.UUID_TORO ? (this.nombreCorto(s.UUID_TORO) ?? 'de la finca') : null;
+      const quien = toro ? `Con el toro ${toro}` : s.TORO_EXTERNO ? (monta ? `Toro de afuera: ${s.TORO_EXTERNO}` : `Pajilla: ${s.TORO_EXTERNO}`) : 'Sin saber el toro';
+      eventos.push({
+        clave: s.UUID_SERVICIO, fecha: s.FECHA_EVENTO, fechaTexto: fechaLegible(s.FECHA_EVENTO, true),
+        icono: 'corazon',
+        titulo: monta ? 'Monta' : 'Inseminación',
+        detalle: [quien, `Parto probable: ${fechaLegible(sumarDias(s.FECHA_EVENTO, DIAS_GESTACION))}`, s.OBSERVACION_SERVICIO].filter(Boolean).join(' · '),
+        cinta: false, pendiente: !!s._pendiente,
+        anulables: uno('SERVICIO', s.UUID_SERVICIO, `${monta ? 'la monta' : 'la inseminación'} del ${fechaLegible(s.FECHA_EVENTO)}`),
+      });
+    }
+
+    //PALPACIONES
+    for (const p of ev?.palpaciones ?? []) {
+      const preniada = p.RESULTADO_PALPACION === 'PRENIADA';
+      const meses = this.numero(p.MESES_GESTACION);
+      eventos.push({
+        clave: p.UUID_PALPACION, fecha: p.FECHA_EVENTO, fechaTexto: fechaLegible(p.FECHA_EVENTO, true),
+        icono: 'vaca',
+        titulo: preniada ? `Palpada: preñada${meses ? ` de ${meses} ${meses === 1 ? 'mes' : 'meses'}` : ''}` : 'Palpada: vacía',
+        detalle: [preniada && meses ? `Pariría más o menos el ${fechaLegible(sumarMeses(p.FECHA_EVENTO, 9 - meses))}` : null, p.OBSERVACION_PALPACION].filter(Boolean).join(' · ') || null,
+        cinta: false, pendiente: !!p._pendiente,
+        anulables: uno('PALPACION', p.UUID_PALPACION, `la palpación del ${fechaLegible(p.FECHA_EVENTO)}`),
+      });
+    }
+
+    //PARTOS (CON SU CRIA TOCABLE)
+    for (const p of ev?.partos ?? []) {
+      const como = ({ NORMAL: 'Parto normal', ASISTIDO: 'Parto asistido', CESAREA: 'Por cesárea', ABORTO: null } as Record<string, string | null>)[p.TIPO_PARTO];
+      const cria = p.UUID_CRIA ? this.animalesFinca.get(p.UUID_CRIA) : null;
+      const titulo = p.TIPO_PARTO === 'ABORTO' ? 'Abortó' : p.CRIA_VIVA === 'SI' ? `Parió ${p.SEXO_CRIA === 'M' ? 'un ternero' : 'una ternera'}` : 'Parió: la cría nació muerta';
+      eventos.push({
+        clave: p.UUID_PARTO, fecha: p.FECHA_EVENTO, fechaTexto: fechaLegible(p.FECHA_EVENTO, true),
+        icono: 'biberon',
+        titulo,
+        detalle: [como, p.OBSERVACION_PARTO].filter(Boolean).join(' · ') || null,
+        cinta: false, pendiente: !!p._pendiente,
+        enlace: cria && cria.ESTADO_ANIMAL !== 'ANULADO'
+          ? { uuid: cria.UUID_ANIMAL, texto: `Ver ${p.SEXO_CRIA === 'M' ? 'el ternero' : 'la ternera'} ${this.nombreCorto(cria.UUID_ANIMAL) ?? ''}`.trim() }
+          : null,
+        anulables: uno('PARTO', p.UUID_PARTO, `el parto del ${fechaLegible(p.FECHA_EVENTO)}`),
+      });
+    }
+
+    //ORDEÑOS AGRUPADOS POR DIA: MAÑANA + TARDE = TOTAL
+    const porDia = new Map<string, OrdenoDTO[]>();
+    for (const o of ev?.ordenos ?? []) {
+      const dia = o.FECHA_EVENTO.slice(0, 10);
+      porDia.set(dia, [...(porDia.get(dia) ?? []), o]);
+    }
+    const jornada = (j: string) => (j === 'MANANA' ? 'mañana' : 'tarde');
+    for (const [dia, lista] of porDia) {
+      const orden = [...lista].sort((x, y) => (x.JORNADA_ORDENO === 'MANANA' ? 0 : 1) - (y.JORNADA_ORDENO === 'MANANA' ? 0 : 1));
+      const total = Math.round(orden.reduce((t, o) => t + (this.numero(o.LITROS_ORDENO) ?? 0), 0) * 10) / 10;
+      eventos.push({
+        clave: 'ordeno-' + dia,
+        fecha: orden.map(o => o.FECHA_EVENTO).sort().pop() ?? dia,
+        fechaTexto: fechaLegible(dia),
+        icono: 'gota',
+        titulo: `Ordeño: ${total} litros`,
+        detalle: orden.map(o => `${o.JORNADA_ORDENO === 'MANANA' ? 'Mañana' : 'Tarde'} ${this.numero(o.LITROS_ORDENO) ?? 0} L`).join(' + ') + (orden.length > 1 ? ` = ${total} L` : ''),
+        cinta: false, pendiente: orden.some(o => !!o._pendiente),
+        anulables: orden.map(o => ({
+          tipo: 'ORDENO' as TipoEvento, uuid: o.UUID_ORDENO,
+          texto: orden.length > 1 ? `Anular la ${jornada(o.JORNADA_ORDENO)}` : 'Anular',
+          descripcion: `el ordeño de la ${jornada(o.JORNADA_ORDENO)} del ${fechaLegible(dia)}`,
+        })),
+      });
+    }
+
+    //SALIDA
+    for (const sa of ev?.salidas ?? []) {
+      const valor = this.numero(sa.VALOR_SALIDA);
+      const peso = this.numero(sa.PESO_SALIDA_KG);
+      eventos.push({
+        clave: sa.UUID_SALIDA, fecha: sa.FECHA_EVENTO, fechaTexto: fechaLegible(sa.FECHA_EVENTO, true),
+        icono: 'salida',
+        titulo: sa.TIPO_SALIDA === 'VENTA' ? 'Se vendió' : sa.TIPO_SALIDA === 'MUERTE' ? 'Murió' : 'Se trasladó a otra finca',
+        detalle: [valor !== null ? `Por $${valor.toLocaleString('es-CO')}` : null, peso !== null ? `Pesaba ${peso} kg` : null,
+          sa.CAUSA_SALIDA ? `Causa: ${sa.CAUSA_SALIDA}` : null, sa.OBSERVACION_SALIDA].filter(Boolean).join(' · ') || null,
+        cinta: false, pendiente: !!sa._pendiente,
+        anulables: uno('SALIDA', sa.UUID_SALIDA, `la salida del ${fechaLegible(sa.FECHA_EVENTO)}`),
+      });
+    }
+
+    //ABAJO DE TODO: EL NACIMIENTO O LA LLEGADA
     const comprado = a.ORIGEN_ANIMAL === 'COMPRADO';
     const fechaIngreso = comprado ? a.FECHA_INGRESO_ANIMAL : a.FECHA_NACIMIENTO;
     eventos.push({
@@ -389,8 +587,39 @@ export class FichaAnimalComponent implements OnInit, OnDestroy {
       cinta: false,
       pendiente: !!a._pendiente,
     });
-    //LO MAS NUEVO ARRIBA; EL INGRESO, SI COINCIDE EN EL DIA, ABAJO DE TODO
-    this.eventos = eventos.sort((x, y) => y.fecha.localeCompare(x.fecha) || (x.clave === 'ingreso' ? 1 : y.clave === 'ingreso' ? -1 : 0));
+    //LO MAS NUEVO ARRIBA; EL INGRESO SIEMPRE AL FINAL
+    this.eventos = eventos.sort((x, y) => (x.clave === 'ingreso' ? 1 : y.clave === 'ingreso' ? -1 : y.fecha.localeCompare(x.fecha)));
+  }
+
+  //---------------------------------------------REGISTRAR DESDE LA FICHA-------------------------------------------------------
+
+  //HEMBRA QUE NO ES TERNERA: SE PUEDE ORDEÑAR, SERVIR, PALPAR Y REGISTRAR SU PARTO
+  get hembraAdulta(): boolean {
+    return !!this.animal && this.animal.SEXO_ANIMAL === 'H' && categoriaAnimal(this.animal) !== 'TERNERA';
+  }
+
+  get botonesRegistrar(): { texto: string; icono: string; ruta: string }[] {
+    const lista = [{ texto: 'Pesar', icono: 'pesa', ruta: '/app/pesar' }];
+    if (this.hembraAdulta) {
+      lista.push(
+        { texto: 'Ordeñar', icono: 'gota', ruta: '/app/evento/ordeno' },
+        { texto: 'Monta / Inseminación', icono: 'corazon', ruta: '/app/evento/servicio' },
+        { texto: 'Palpar', icono: 'buscar', ruta: '/app/evento/palpacion' },
+        { texto: 'Parió', icono: 'biberon', ruta: '/app/evento/parto' },
+      );
+    }
+    lista.push({ texto: 'Vacunar', icono: 'jeringa', ruta: '/app/evento/vacunacion' }, { texto: 'Salió', icono: 'salida', ruta: '/app/evento/salida' });
+    return lista;
+  }
+
+  //SI YA SALIO DE LA FINCA: "Se vendió el 4 nov 2026"
+  get textoSalida(): string | null {
+    const a = this.animal;
+    if (!a || a.ESTADO_ANIMAL === 'ACTIVO' || a.ESTADO_ANIMAL === 'ANULADO') {
+      return null;
+    }
+    const como = a.ESTADO_ANIMAL === 'VENDIDO' ? 'Se vendió' : a.ESTADO_ANIMAL === 'MUERTO' ? 'Murió' : 'Se trasladó a otra finca';
+    return a.FECHA_SALIDA_ANIMAL ? `${como} el ${fechaLegible(a.FECHA_SALIDA_ANIMAL)}` : como;
   }
 
   get edad(): string {

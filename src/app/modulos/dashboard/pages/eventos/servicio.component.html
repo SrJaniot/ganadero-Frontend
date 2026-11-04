@@ -1,0 +1,104 @@
+@if (!puedeRegistrar) {
+  <div class="card p-6 text-center">
+    <app-icono nombre="candado" clase="w-10 h-10 mx-auto text-suave" />
+    <p class="font-bold text-lg mt-3 mb-1">Tu rol no puede registrar montas ni inseminaciones</p>
+    <p class="text-suave m-0">Pídele permiso al dueño de la finca.</p>
+    <a routerLink="/app/hoy" class="btn-secundario mt-4">Volver</a>
+  </div>
+} @else if (guardado) {
+  <!-- GUARDADO: EL PARTO PROBABLE EN GRANDE -->
+  <div class="card p-6 text-center max-w-xl mx-auto">
+    <span class="grid place-items-center w-16 h-16 rounded-full bg-exito-fondo text-exito mx-auto"><app-icono nombre="check" clase="w-9 h-9" /></span>
+    <p class="text-xl font-bold mt-3 mb-1">{{ guardado.texto }}</p>
+    <div class="rounded-3xl bg-info-fondo text-info px-4 py-4 mt-4">
+      <p class="m-0 font-semibold">Parto probable</p>
+      <p class="m-0 text-3xl font-bold">{{ guardado.partoProbable }}</p>
+      <p class="m-0 text-sm mt-1">Son {{ diasGestacion }} días después del servicio, si queda preñada. Confírmalo palpándola.</p>
+    </div>
+    <p class="text-suave mt-3 mb-0">Está en el celular. Se sube solo cuando haya señal.</p>
+    <div class="grid gap-3 mt-5">
+      <button type="button" class="btn-primary text-lg min-h-[58px]" (click)="registrarOtro()"><app-icono nombre="corazon" clase="w-6 h-6" /> Registrar otro</button>
+      <button type="button" class="btn-secundario" (click)="verFicha()"><app-icono nombre="vaca" clase="w-5 h-5" /> Ver la ficha</button>
+    </div>
+  </div>
+} @else {
+  <form class="max-w-xl mx-auto grid gap-4" [formGroup]="form" (ngSubmit)="guardar()" novalidate>
+    <p class="ayuda-finca m-0">Anota cuando la vaca o novilla <b>quedó con el toro</b> (monta) o la <b>inseminaron</b> con pajilla. La app calcula el parto probable.</p>
+
+    <!-- LA HEMBRA -->
+    <app-elegir-animal titulo="¿Qué hembra?" [sexo]="'H'" [uuidInicial]="uuidInicial" [motivoNoValido]="motivoHembra" (elegido)="alElegirHembra($event)" />
+    @if (errores.animal) { <p class="aviso-error m-0">{{ errores.animal }}</p> }
+
+    @if (hembra) {
+      <!-- MONTA O INSEMINACION -->
+      <div>
+        <p class="font-bold mb-2">¿Cómo fue?</p>
+        <div class="grid grid-cols-2 gap-3">
+          <button type="button" class="btn-grande min-h-[96px]" [class.border-primario]="tipo === 'MONTA'" [class.bg-tarjeta-alta]="tipo === 'MONTA'"
+            [attr.aria-pressed]="tipo === 'MONTA'" (click)="elegirTipo('MONTA')">
+            <app-icono nombre="corazon" clase="w-9 h-9 text-primario-texto" /> Monta
+          </button>
+          <button type="button" class="btn-grande min-h-[96px]" [class.border-primario]="tipo === 'INSEMINACION'" [class.bg-tarjeta-alta]="tipo === 'INSEMINACION'"
+            [attr.aria-pressed]="tipo === 'INSEMINACION'" (click)="elegirTipo('INSEMINACION')">
+            <app-icono nombre="jeringa" clase="w-9 h-9 text-primario-texto" /> Inseminación
+          </button>
+        </div>
+        @if (errores.tipo) { <p class="texto-error">{{ errores.tipo }}</p> }
+      </div>
+
+      @if (tipo === 'MONTA') {
+        <!-- EL TORO -->
+        <div class="card p-4 grid gap-3">
+          <p class="font-bold m-0">¿Con qué toro?</p>
+          <div class="grid grid-cols-3 gap-2">
+            <button type="button" class="btn-secundario px-2 min-h-[56px]" [class.border-primario]="toroMonta === 'FINCA'" [class.bg-tarjeta-alta]="toroMonta === 'FINCA'"
+              [attr.aria-pressed]="toroMonta === 'FINCA'" (click)="elegirToroMonta('FINCA')">De la finca</button>
+            <button type="button" class="btn-secundario px-2 min-h-[56px]" [class.border-primario]="toroMonta === 'AFUERA'" [class.bg-tarjeta-alta]="toroMonta === 'AFUERA'"
+              [attr.aria-pressed]="toroMonta === 'AFUERA'" (click)="elegirToroMonta('AFUERA')">De afuera</button>
+            <button type="button" class="btn-secundario px-2 min-h-[56px]" [class.border-primario]="toroMonta === 'NO_SE'" [class.bg-tarjeta-alta]="toroMonta === 'NO_SE'"
+              [attr.aria-pressed]="toroMonta === 'NO_SE'" (click)="elegirToroMonta('NO_SE')">No sé</button>
+          </div>
+          @if (toroMonta === 'FINCA') {
+            <app-elegir-animal titulo="¿Cuál toro?" [sexo]="'M'" (elegido)="alElegirToro($event)" />
+          } @else if (toroMonta === 'AFUERA') {
+            <div>
+              <label class="label-field" for="toroExterno">¿Cuál toro de afuera?</label>
+              <input id="toroExterno" type="text" class="input-field" formControlName="toroExterno" maxlength="80" placeholder="Ej: el toro de don Luis" [class.input-error]="errores.toro">
+            </div>
+          } @else if (toroMonta === 'NO_SE') {
+            <p class="ayuda m-0">Queda sin toro. La cría saldrá sin padre conocido.</p>
+          }
+          @if (errores.toro) { <p class="texto-error m-0">{{ errores.toro }}</p> }
+        </div>
+      } @else if (tipo === 'INSEMINACION') {
+        <!-- LA PAJILLA -->
+        <div class="card p-4">
+          <label class="label-field" for="pajilla">¿Qué pajilla?</label>
+          <input id="pajilla" type="text" class="input-field" formControlName="pajilla" maxlength="80" placeholder="Ej: Gyr 4521 o el nombre del toro" [class.input-error]="errores.pajilla">
+          @if (errores.pajilla) { <p class="texto-error">{{ errores.pajilla }}</p> } @else { <p class="ayuda mt-1 mb-0">El nombre o el código que trae la pajilla. Será el padre de la cría.</p> }
+        </div>
+      }
+
+      <!-- FECHA Y NOTA -->
+      <div class="card p-4 grid gap-4">
+        <div>
+          <label class="label-field" for="fecha">¿Cuándo?</label>
+          <input id="fecha" type="datetime-local" class="input-field" formControlName="fecha" [max]="ahora" [class.input-error]="errores.fecha">
+          @if (errores.fecha) { <p class="texto-error">{{ errores.fecha }}</p> } @else { <p class="ayuda mt-1 mb-0">Ya está puesta la hora de ahora. Cámbiala solo si fue otro día.</p> }
+          @if (partoProbable) {
+            <p class="mt-2 mb-0 rounded-2xl bg-info-fondo text-info px-4 py-2.5 font-semibold">Parto probable: {{ partoProbable }}</p>
+          }
+        </div>
+        <div>
+          <label class="label-field" for="nota">Nota (opcional)</label>
+          <input id="nota" type="text" class="input-field" formControlName="nota" maxlength="300" placeholder="Ej: estaba en celo desde ayer" [class.input-error]="errores.nota">
+          @if (errores.nota) { <p class="texto-error">{{ errores.nota }}</p> }
+        </div>
+      </div>
+
+      <button type="submit" class="btn-primary text-xl min-h-[64px] w-full" [disabled]="guardando">
+        @if (guardando) { Guardando... } @else { <app-icono nombre="check" clase="w-7 h-7" /> Guardar }
+      </button>
+    }
+  </form>
+}

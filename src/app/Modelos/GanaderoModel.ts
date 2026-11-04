@@ -114,6 +114,97 @@ export interface PesajeDTO {
   _pendiente?: boolean;
 }
 
+//EVENTOS DE LA FASE 2 (MISMAS COLUMNAS QUE BAJAN EN FUN_OBTENER_CAMBIOS_JSON) ---------------------------------------------------------
+export interface VacunacionDTO {
+  UUID_VACUNACION: string;
+  UUID_ANIMAL: string;
+  FECHA_EVENTO: string;
+  ID_VACUNA: number;
+  DOSIS_VACUNACION: string | null;
+  FECHA_PROXIMA_DOSIS: string | null;   //AAAA-MM-DD (EN EL CELULAR SE CALCULA CON EL CATALOGO; LA BASE GUARDA LA OFICIAL)
+  FECHA_FIN_RETIRO: string | null;      //NO VENDER LA LECHE HASTA ESTE DIA
+  OBSERVACION_VACUNACION: string | null;
+  ESTADO_VACUNACION: 'ACTIVO' | 'ANULADO';
+  USUARIO_CREACION?: string;
+  _pendiente?: boolean;
+}
+
+export interface ServicioDTO {
+  UUID_SERVICIO: string;
+  UUID_ANIMAL: string;
+  FECHA_EVENTO: string;
+  TIPO_SERVICIO: 'MONTA' | 'INSEMINACION';
+  UUID_TORO: string | null;
+  TORO_EXTERNO: string | null;
+  OBSERVACION_SERVICIO: string | null;
+  ESTADO_SERVICIO: 'ACTIVO' | 'ANULADO';
+  USUARIO_CREACION?: string;
+  _pendiente?: boolean;
+}
+
+export interface PalpacionDTO {
+  UUID_PALPACION: string;
+  UUID_ANIMAL: string;
+  FECHA_EVENTO: string;
+  RESULTADO_PALPACION: 'PRENIADA' | 'VACIA';
+  MESES_GESTACION: number | null;
+  OBSERVACION_PALPACION: string | null;
+  ESTADO_PALPACION: 'ACTIVO' | 'ANULADO';
+  USUARIO_CREACION?: string;
+  _pendiente?: boolean;
+}
+
+export interface PartoDTO {
+  UUID_PARTO: string;
+  UUID_ANIMAL: string;
+  FECHA_EVENTO: string;
+  TIPO_PARTO: 'NORMAL' | 'ASISTIDO' | 'CESAREA' | 'ABORTO';
+  CRIA_VIVA: 'SI' | 'NO';
+  SEXO_CRIA: 'H' | 'M' | null;
+  UUID_CRIA: string | null;
+  OBSERVACION_PARTO: string | null;
+  ESTADO_PARTO: 'ACTIVO' | 'ANULADO';
+  USUARIO_CREACION?: string;
+  _pendiente?: boolean;
+}
+
+export interface OrdenoDTO {
+  UUID_ORDENO: string;
+  UUID_ANIMAL: string;
+  FECHA_EVENTO: string;
+  JORNADA_ORDENO: 'MANANA' | 'TARDE';
+  LITROS_ORDENO: number | string;
+  OBSERVACION_ORDENO: string | null;
+  ESTADO_ORDENO: 'ACTIVO' | 'ANULADO';
+  USUARIO_CREACION?: string;
+  _pendiente?: boolean;
+}
+
+export interface SalidaDTO {
+  UUID_SALIDA: string;
+  UUID_ANIMAL: string;
+  FECHA_EVENTO: string;
+  TIPO_SALIDA: 'VENTA' | 'MUERTE' | 'TRASLADO';
+  VALOR_SALIDA: number | string | null;
+  PESO_SALIDA_KG: number | string | null;
+  CAUSA_SALIDA: string | null;
+  OBSERVACION_SALIDA: string | null;
+  ESTADO_SALIDA: 'ACTIVO' | 'ANULADO';
+  USUARIO_CREACION?: string;
+  _pendiente?: boolean;
+}
+
+//TODO LO QUE LE HA PASADO A UN ANIMAL EN EL CELULAR (LA FICHA ARMA CON ESTO SU LINEA DE TIEMPO, SIN SEÑAL)
+export interface EventosAnimal {
+  pesajes: PesajeDTO[];
+  vacunaciones: VacunacionDTO[];
+  servicios: ServicioDTO[];
+  palpaciones: PalpacionDTO[];
+  partos: PartoDTO[];
+  ordenos: OrdenoDTO[];
+  salidas: SalidaDTO[];
+}
+
 //SINCRONIZACION ---------------------------------------------------------------------------------------------------------------------
 export type TipoRegistro = 'LOTE' | 'ANIMAL' | 'PESAJE' | 'VACUNACION' | 'SERVICIO' | 'PALPACION' | 'PARTO' | 'ORDENO' | 'SALIDA';
 export type OperacionRegistro = 'CREAR' | 'EDITAR' | 'ANULAR';

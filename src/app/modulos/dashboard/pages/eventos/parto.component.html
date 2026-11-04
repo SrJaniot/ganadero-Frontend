@@ -1,0 +1,117 @@
+@if (!puedeRegistrar) {
+  <div class="card p-6 text-center">
+    <app-icono nombre="candado" clase="w-10 h-10 mx-auto text-suave" />
+    <p class="font-bold text-lg mt-3 mb-1">Tu rol no puede registrar partos</p>
+    <p class="text-suave m-0">Pídele permiso al dueño de la finca.</p>
+    <a routerLink="/app/hoy" class="btn-secundario mt-4">Volver</a>
+  </div>
+} @else if (guardado) {
+  <div class="card p-6 text-center max-w-xl mx-auto">
+    <span class="grid place-items-center w-16 h-16 rounded-full bg-exito-fondo text-exito mx-auto"><app-icono nombre="check" clase="w-9 h-9" /></span>
+    <p class="text-xl font-bold mt-3 mb-1">{{ guardado.texto }}</p>
+    <p class="text-suave mt-1 mb-0">Está en el celular. Se sube solo cuando haya señal.</p>
+    <div class="grid gap-3 mt-5">
+      @if (guardado.uuidCria) {
+        <button type="button" class="btn-primary text-lg min-h-[58px]" (click)="ver(guardado.uuidCria)"><app-icono nombre="biberon" clase="w-6 h-6" /> Ver la cría</button>
+      }
+      <button type="button" [class]="guardado.uuidCria ? 'btn-secundario' : 'btn-primary text-lg min-h-[58px]'" (click)="ver(guardado.uuidMadre)"><app-icono nombre="vaca" clase="w-5 h-5" /> Ver la madre</button>
+      <button type="button" class="btn-secundario" (click)="registrarOtro()"><app-icono nombre="mas" clase="w-5 h-5" /> Registrar otro parto</button>
+    </div>
+  </div>
+} @else {
+  <form class="max-w-xl mx-auto grid gap-4" [formGroup]="form" (ngSubmit)="guardar()" novalidate>
+    <p class="ayuda-finca m-0">Anota el parto. Si la cría nació viva, <b>entra sola al hato</b> con su madre: no hay que registrarla aparte.</p>
+
+    <app-elegir-animal titulo="¿Qué vaca parió?" [sexo]="'H'" [uuidInicial]="uuidInicial" [motivoNoValido]="motivoMadre" (elegido)="alElegirMadre($event)" />
+    @if (errores.animal) { <p class="aviso-error m-0">{{ errores.animal }}</p> }
+
+    @if (madre) {
+      <!-- COMO FUE -->
+      <div>
+        <p class="font-bold mb-2">¿Cómo fue?</p>
+        <div class="grid grid-cols-2 gap-3">
+          @for (t of tipos; track t.valor) {
+            <button type="button" class="btn-grande min-h-[76px]" [class.border-primario]="tipo === t.valor" [class.bg-tarjeta-alta]="tipo === t.valor"
+              [attr.aria-pressed]="tipo === t.valor" (click)="elegirTipo(t.valor)">{{ t.texto }}</button>
+          }
+        </div>
+        @if (errores.tipo) { <p class="texto-error">{{ errores.tipo }}</p> }
+        @if (tipo === 'ABORTO') { <p class="ayuda mt-1.5 mb-0">En un aborto no hay cría. Igual cuenta como parto de la vaca.</p> }
+      </div>
+
+      @if (tipo && tipo !== 'ABORTO') {
+        <!-- ¿NACIO VIVA? -->
+        <div>
+          <p class="font-bold mb-2">¿La cría nació viva?</p>
+          <div class="grid grid-cols-2 gap-3">
+            <button type="button" class="btn-grande min-h-[76px]" [class.border-primario]="criaViva === 'SI'" [class.bg-tarjeta-alta]="criaViva === 'SI'"
+              [attr.aria-pressed]="criaViva === 'SI'" (click)="elegirViva('SI')"><app-icono nombre="check" clase="w-8 h-8 text-primario-texto" /> Sí</button>
+            <button type="button" class="btn-grande min-h-[76px]" [class.border-primario]="criaViva === 'NO'" [class.bg-tarjeta-alta]="criaViva === 'NO'"
+              [attr.aria-pressed]="criaViva === 'NO'" (click)="elegirViva('NO')"><app-icono nombre="cerrar" clase="w-8 h-8 text-primario-texto" /> No</button>
+          </div>
+          @if (errores.viva) { <p class="texto-error">{{ errores.viva }}</p> }
+        </div>
+      }
+
+      @if (hayCria) {
+        <!-- LA CRIA -->
+        <div class="card p-4 grid gap-4">
+          <div>
+            <p class="font-bold mt-0 mb-2">¿Ternera o ternero?</p>
+            <div class="grid grid-cols-2 gap-3">
+              <button type="button" class="btn-grande min-h-[76px]" [class.border-primario]="sexoCria === 'H'" [class.bg-tarjeta-alta]="sexoCria === 'H'"
+                [attr.aria-pressed]="sexoCria === 'H'" (click)="elegirSexo('H')">Ternera</button>
+              <button type="button" class="btn-grande min-h-[76px]" [class.border-primario]="sexoCria === 'M'" [class.bg-tarjeta-alta]="sexoCria === 'M'"
+                [attr.aria-pressed]="sexoCria === 'M'" (click)="elegirSexo('M')">Ternero</button>
+            </div>
+            @if (errores.sexo) { <p class="texto-error">{{ errores.sexo }}</p> }
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="label-field" for="chapeta">Chapeta (opcional)</label>
+              <input id="chapeta" type="text" inputmode="numeric" class="input-field uppercase text-xl font-bold" formControlName="chapeta" maxlength="20" autocomplete="off" [class.input-error]="errores.chapeta">
+            </div>
+            <div>
+              <label class="label-field" for="peso">Peso al nacer (opcional)</label>
+              <div class="relative">
+                <input id="peso" type="text" inputmode="decimal" class="input-field pr-12 text-xl font-bold" formControlName="peso" maxlength="5" autocomplete="off" [class.input-error]="errores.peso">
+                <span class="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-suave pointer-events-none">kg</span>
+              </div>
+            </div>
+          </div>
+          @if (errores.chapeta) { <p class="texto-error m-0">{{ errores.chapeta }}</p> }
+          @if (errores.peso) { <p class="texto-error m-0">{{ errores.peso }}</p> }
+          <div>
+            <label class="label-field" for="nombre">Nombre (opcional)</label>
+            <input id="nombre" type="text" class="input-field" formControlName="nombre" maxlength="60" placeholder="Ej: Estrella" [class.input-error]="errores.nombre">
+            @if (errores.nombre) { <p class="texto-error">{{ errores.nombre }}</p> }
+          </div>
+          <!-- QUIEN ES EL PADRE Y EN QUE LOTE QUEDA -->
+          <div class="rounded-2xl bg-info-fondo text-info px-4 py-3 text-sm">
+            <p class="m-0"><b>Padre:</b>
+              @if (textoPadre) { {{ textoPadre }}, del último servicio anotado. } @else { no se sabe (no hay monta ni inseminación anotada desde el parto anterior). }
+            </p>
+            <p class="m-0 mt-1"><b>Lote:</b> @if (loteMadre) { queda en «{{ loteMadre }}», con la madre. } @else { queda sin lote, como la madre. }</p>
+          </div>
+        </div>
+      }
+
+      <div class="card p-4 grid gap-4">
+        <div>
+          <label class="label-field" for="fecha">¿Cuándo?</label>
+          <input id="fecha" type="datetime-local" class="input-field" formControlName="fecha" [max]="ahora" [class.input-error]="errores.fecha">
+          @if (errores.fecha) { <p class="texto-error">{{ errores.fecha }}</p> } @else { <p class="ayuda mt-1 mb-0">Ya está puesta la hora de ahora. Cámbiala solo si fue otro día. Es también el nacimiento de la cría.</p> }
+        </div>
+        <div>
+          <label class="label-field" for="nota">Nota (opcional)</label>
+          <input id="nota" type="text" class="input-field" formControlName="nota" maxlength="300" placeholder="Ej: parió en el potrero de abajo" [class.input-error]="errores.nota">
+          @if (errores.nota) { <p class="texto-error">{{ errores.nota }}</p> }
+        </div>
+      </div>
+
+      <button type="submit" class="btn-primary text-xl min-h-[64px] w-full" [disabled]="guardando">
+        @if (guardando) { Guardando... } @else { <app-icono nombre="check" clase="w-7 h-7" /> Guardar }
+      </button>
+    }
+  </form>
+}

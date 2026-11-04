@@ -1,0 +1,102 @@
+@if (!puedeRegistrar) {
+  <div class="card p-6 text-center">
+    <app-icono nombre="candado" clase="w-10 h-10 mx-auto text-suave" />
+    <p class="font-bold text-lg mt-3 mb-1">Tu rol no puede registrar salidas</p>
+    <p class="text-suave m-0">Pídele permiso al dueño de la finca.</p>
+    <a routerLink="/app/hoy" class="btn-secundario mt-4">Volver</a>
+  </div>
+} @else {
+  <form class="max-w-xl mx-auto grid gap-4" [formGroup]="form" (ngSubmit)="pedirConfirmacion()" novalidate>
+    <p class="ayuda m-0">Para un animal que se vendió, murió o se llevó a otra finca. No se borra: queda en el historial y deja de contar en el hato.</p>
+
+    <!-- EL ANIMAL -->
+    <app-elegir-animal titulo="¿Qué animal salió?" [uuidInicial]="uuidInicial" (elegido)="alElegir($event)" />
+    @if (errores.animal) { <p class="aviso-error m-0">{{ errores.animal }}</p> }
+    @else if (animal && ultimoRegistro) { <p class="ayuda m-0">Su último registro es del {{ ultimoRegistroLegible }}: la salida no puede ser antes.</p> }
+
+    <!-- TIPO -->
+    <div>
+      <p class="label-field mb-2">¿Qué pasó?</p>
+      <div class="grid grid-cols-3 gap-2">
+        <button type="button" class="btn-grande min-h-[96px] px-2" [class.border-primario]="tipo === 'VENTA'" [class.bg-tarjeta-alta]="tipo === 'VENTA'"
+          [attr.aria-pressed]="tipo === 'VENTA'" (click)="elegirTipo('VENTA')">
+          <app-icono nombre="alcancia" clase="w-9 h-9 text-primario-texto" /> Venta
+        </button>
+        <button type="button" class="btn-grande min-h-[96px] px-2" [class.border-primario]="tipo === 'MUERTE'" [class.bg-tarjeta-alta]="tipo === 'MUERTE'"
+          [attr.aria-pressed]="tipo === 'MUERTE'" (click)="elegirTipo('MUERTE')">
+          <app-icono nombre="alerta" clase="w-9 h-9 text-primario-texto" /> Muerte
+        </button>
+        <button type="button" class="btn-grande min-h-[96px] px-2" [class.border-primario]="tipo === 'TRASLADO'" [class.bg-tarjeta-alta]="tipo === 'TRASLADO'"
+          [attr.aria-pressed]="tipo === 'TRASLADO'" (click)="elegirTipo('TRASLADO')">
+          <app-icono nombre="salida" clase="w-9 h-9 text-primario-texto" /> Traslado
+        </button>
+      </div>
+      @if (errores.tipo) { <p class="texto-error">{{ errores.tipo }}</p> }
+    </div>
+
+    <!-- LO QUE PIDE CADA TIPO -->
+    @if (tipo === 'VENTA') {
+      <div class="card p-4 grid gap-4">
+        <div>
+          <label class="label-field" for="valor">¿En cuánto se vendió?</label>
+          <div class="relative">
+            <span class="absolute left-5 top-1/2 -translate-y-1/2 text-2xl font-bold text-suave pointer-events-none">$</span>
+            <input id="valor" type="text" inputmode="numeric" class="input-field text-3xl font-bold min-h-[68px] pl-11" [ngModel]="valorTexto" (ngModelChange)="alEscribirValor($event)"
+              [ngModelOptions]="{ standalone: true }" [class.input-error]="errores.valor" autocomplete="off" placeholder="0" maxlength="15">
+          </div>
+          @if (errores.valor) { <p class="texto-error">{{ errores.valor }}</p> } @else { <p class="ayuda mt-1 mb-0">El valor total del animal, en pesos.</p> }
+        </div>
+        <div>
+          <label class="label-field" for="peso">Peso al venderlo (opcional)</label>
+          <div class="relative">
+            <input id="peso" type="text" inputmode="decimal" class="input-field text-xl font-bold pr-14" formControlName="peso" [class.input-error]="errores.peso" autocomplete="off" placeholder="0" maxlength="7">
+            <span class="absolute right-5 top-1/2 -translate-y-1/2 font-bold text-suave pointer-events-none">kg</span>
+          </div>
+          @if (errores.peso) { <p class="texto-error">{{ errores.peso }}</p> }
+        </div>
+      </div>
+    } @else if (tipo === 'MUERTE') {
+      <div class="card p-4">
+        <label class="label-field" for="causa">¿De qué murió?</label>
+        <div class="flex flex-wrap gap-2 mb-3">
+          @for (c of causasRapidas; track c) {
+            <button type="button" class="btn-secundario min-h-[48px] px-4" [class.border-primario]="form.controls.causa.value === c" [class.bg-tarjeta-alta]="form.controls.causa.value === c" (click)="ponerCausa(c)">{{ c }}</button>
+          }
+        </div>
+        <input id="causa" type="text" class="input-field" formControlName="causa" maxlength="200" placeholder="O escribe la causa" [class.input-error]="errores.causa">
+        @if (errores.causa) { <p class="texto-error">{{ errores.causa }}</p> }
+      </div>
+    } @else if (tipo === 'TRASLADO') {
+      <p class="m-0 rounded-2xl bg-info-fondo text-info px-4 py-3">Se lleva a otra finca. Si quieres, escribe a dónde en la nota.</p>
+    }
+
+    <!-- FECHA Y NOTA -->
+    <div class="card p-4 grid gap-4">
+      <div>
+        <label class="label-field" for="fecha">¿Cuándo?</label>
+        <input id="fecha" type="datetime-local" class="input-field" formControlName="fecha" [max]="ahora" [class.input-error]="errores.fecha">
+        @if (errores.fecha) { <p class="texto-error">{{ errores.fecha }}</p> } @else { <p class="ayuda mt-1 mb-0">Ya está puesta la hora de ahora. Cámbiala solo si fue otro día.</p> }
+      </div>
+      <div>
+        <label class="label-field" for="nota">Nota (opcional)</label>
+        <input id="nota" type="text" class="input-field" formControlName="nota" maxlength="300" [placeholder]="tipo === 'TRASLADO' ? 'Ej: a la finca La Esperanza' : 'Ej: se la vendí a don Pedro'" [class.input-error]="errores.nota">
+        @if (errores.nota) { <p class="texto-error">{{ errores.nota }}</p> }
+      </div>
+    </div>
+
+    <button type="submit" class="btn-primary text-xl min-h-[64px] w-full" [disabled]="guardando">
+      @if (guardando) { Guardando... } @else { <app-icono nombre="salida" clase="w-7 h-7" /> Registrar la salida }
+    </button>
+  </form>
+
+  <app-confirmar-accion
+    [abierto]="confirmando"
+    titulo="¿Registrar la salida?"
+    [descripcion]="textoConfirmar"
+    aviso="El animal no se borra: queda en el historial. Si fue un error, el dueño puede anular la salida desde la ficha y el animal vuelve al hato."
+    textoBoton="Sí, salió"
+    [peligroso]="true"
+    [procesando]="guardando"
+    (confirmar)="guardar()"
+    (cancelar)="cancelarConfirmacion()" />
+}

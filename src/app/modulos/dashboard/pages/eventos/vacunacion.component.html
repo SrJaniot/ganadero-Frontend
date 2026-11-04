@@ -1,0 +1,187 @@
+@if (!puedeRegistrar) {
+  <div class="card p-6 text-center">
+    <app-icono nombre="candado" clase="w-10 h-10 mx-auto text-suave" />
+    <p class="font-bold text-lg mt-3 mb-1">Tu rol no puede registrar vacunas ni tratamientos</p>
+    <p class="text-suave m-0">Pídele permiso al dueño de la finca.</p>
+    <a routerLink="/app/hoy" class="btn-secundario mt-4">Volver</a>
+  </div>
+} @else if (resultado) {
+  <!-- GUARDADO: PROXIMA DOSIS Y RETIRO DE LECHE -->
+  <div class="max-w-xl mx-auto grid gap-4">
+    <div class="card p-6 text-center">
+      <span class="grid place-items-center w-16 h-16 rounded-full bg-exito-fondo text-exito mx-auto"><app-icono nombre="check" clase="w-9 h-9" /></span>
+      <p class="text-xl font-bold mt-3 mb-1">{{ resultado.producto }}</p>
+      <p class="text-lg m-0">Guardado a {{ resultado.cantidad }} {{ resultado.cantidad === 1 ? 'animal' : 'animales' }}</p>
+      <p class="text-suave mt-1 mb-0">Está en el celular. Se sube solo cuando haya señal.</p>
+    </div>
+
+    @if (resultado.finRetiro) {
+      <div class="rounded-3xl bg-peligro-fondo text-peligro border-2 border-peligro p-5 text-center">
+        <app-icono nombre="gota" clase="w-10 h-10 mx-auto" />
+        <p class="text-2xl font-bold mt-2 mb-1">No vender la leche hasta el {{ fecha(resultado.finRetiro) }}</p>
+        <p class="m-0">La leche de {{ resultado.cantidad === 1 ? 'este animal' : 'estos animales' }} lleva el producto. Ese día ya se puede vender.</p>
+      </div>
+    } @else {
+      <div class="rounded-3xl bg-exito-fondo text-exito p-4 text-center font-semibold">Este producto no tiene retiro de leche.</div>
+    }
+
+    <div class="card p-4 flex items-center gap-4">
+      <span class="grid place-items-center w-14 h-14 rounded-2xl bg-info-fondo text-info shrink-0"><app-icono nombre="calendario" clase="w-8 h-8" /></span>
+      <div class="leading-snug">
+        @if (resultado.proximaDosis) {
+          <p class="m-0 text-sm text-suave">Próxima dosis</p>
+          <p class="m-0 text-xl font-bold">{{ fecha(resultado.proximaDosis) }}</p>
+          <p class="m-0 text-sm text-suave">Saldrá en «Hoy» cuando se acerque.</p>
+        } @else {
+          <p class="m-0 font-semibold">Este producto no lleva refuerzo programado.</p>
+        }
+      </div>
+    </div>
+
+    @if (resultado.saltados.length) {
+      <div class="card p-4">
+        <p class="font-bold mt-0 mb-2">No se registró a {{ resultado.saltados.length }}:</p>
+        <ul class="m-0 pl-5 text-suave grid gap-1">
+          @for (s of resultado.saltados; track $index) { <li>{{ s }}</li> }
+        </ul>
+      </div>
+    }
+
+    <div class="grid gap-3">
+      <button type="button" class="btn-primary text-lg min-h-[58px]" (click)="registrarOtro()"><app-icono nombre="jeringa" clase="w-6 h-6" /> Registrar otro</button>
+      <button type="button" class="btn-secundario" (click)="volver()">Volver a «¿Qué pasó hoy?»</button>
+    </div>
+  </div>
+} @else {
+  <form class="max-w-xl mx-auto grid gap-4" [formGroup]="form" (ngSubmit)="guardar()" novalidate>
+    <p class="ayuda m-0">Elige el producto, a quién se lo puso y guarda. Se registra uno por animal.</p>
+
+    <!-- EL PRODUCTO -->
+    <div class="card p-4">
+      <p class="label-field mb-2">¿Qué le puso?</p>
+      @if (cargando) {
+        <p class="text-suave m-0">Buscando los productos en el celular...</p>
+      } @else if (grupos.length === 0) {
+        <p class="aviso-error m-0">No hay productos en el celular todavía. Sincroniza con señal para bajarlos.</p>
+      } @else {
+        <div class="grid gap-4">
+          @for (g of grupos; track g.titulo) {
+            <div>
+              <p class="text-sm font-bold text-suave uppercase tracking-wide mt-0 mb-1.5">{{ g.titulo }}</p>
+              <div class="grid gap-2">
+                @for (p of g.productos; track p.ID_VACUNA) {
+                  <button type="button" class="w-full text-left rounded-2xl border-2 px-4 py-3 flex items-center gap-3 cursor-pointer transition-all active:scale-[.99]"
+                    [class.border-primario]="idVacuna === p.ID_VACUNA" [class.bg-tarjeta-alta]="idVacuna === p.ID_VACUNA" [class.border-borde]="idVacuna !== p.ID_VACUNA"
+                    [attr.aria-pressed]="idVacuna === p.ID_VACUNA" (click)="elegirVacuna(p.ID_VACUNA)">
+                    <span class="grid place-items-center w-7 h-7 rounded-full border-2 shrink-0" [class.border-primario]="idVacuna === p.ID_VACUNA" [class.bg-primario]="idVacuna === p.ID_VACUNA" [class.text-sobre-primario]="idVacuna === p.ID_VACUNA">
+                      @if (idVacuna === p.ID_VACUNA) { <app-icono nombre="check" clase="w-4 h-4" /> }
+                    </span>
+                    <span class="min-w-0 flex-1 leading-snug">
+                      <span class="block font-bold">{{ p.NOM_VACUNA }}</span>
+                      <span class="block text-sm" [class.text-peligro]="p.DIAS_RETIRO_LECHE > 0" [class.font-semibold]="p.DIAS_RETIRO_LECHE > 0" [class.text-suave]="p.DIAS_RETIRO_LECHE === 0">{{ textoRetiro(p) }}</span>
+                      @if (textoRefuerzo(p); as r) { <span class="block text-sm text-suave">{{ r }}</span> }
+                    </span>
+                    @if (p.OBLIGATORIA_ICA === 'SI') { <span class="badge badge-info shrink-0">ICA</span> }
+                  </button>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      }
+      @if (errores.vacuna) { <p class="texto-error">{{ errores.vacuna }}</p> }
+    </div>
+
+    <!-- A QUIEN -->
+    <div class="grid grid-cols-2 gap-3">
+      <button type="button" class="btn-grande min-h-[88px]" [class.border-primario]="modo === 'UNO'" [class.bg-tarjeta-alta]="modo === 'UNO'"
+        [attr.aria-pressed]="modo === 'UNO'" (click)="elegirModo('UNO')">
+        <app-icono nombre="vaca" clase="w-8 h-8 text-primario-texto" /> Un animal
+      </button>
+      <button type="button" class="btn-grande min-h-[88px]" [class.border-primario]="modo === 'VARIOS'" [class.bg-tarjeta-alta]="modo === 'VARIOS'"
+        [attr.aria-pressed]="modo === 'VARIOS'" (click)="elegirModo('VARIOS')">
+        <app-icono nombre="personas" clase="w-8 h-8 text-primario-texto" /> Varios
+      </button>
+    </div>
+
+    @if (modo === 'UNO') {
+      <app-elegir-animal titulo="¿A qué animal?" [uuidInicial]="uuidInicial" (elegido)="alElegirUno($event)" />
+    } @else {
+      <div class="card p-4 grid gap-3">
+        @if (lotes.length) {
+          <div>
+            <p class="label-field mb-2">Un lote completo</p>
+            <div class="flex flex-wrap gap-2">
+              @for (l of lotes; track l.UUID_LOTE) {
+                <button type="button" class="btn-secundario min-h-[48px] px-4" [class.border-primario]="loteElegido === l.UUID_LOTE" [class.bg-tarjeta-alta]="loteElegido === l.UUID_LOTE"
+                  (click)="elegirLote(l.UUID_LOTE)">{{ l.NOM_LOTE }} ({{ l.ANIMALES_ACTIVOS }})</button>
+              }
+              @if (haySinLote) {
+                <button type="button" class="btn-secundario min-h-[48px] px-4" [class.border-primario]="loteElegido === 'SIN'" [class.bg-tarjeta-alta]="loteElegido === 'SIN'"
+                  (click)="elegirLote('SIN')">Sin lote ({{ cuantosSinLote() }})</button>
+              }
+            </div>
+          </div>
+        }
+        <div>
+          <p class="label-field mb-2">O toca los animales</p>
+          <input type="text" class="input-field" placeholder="Buscar por chapeta o nombre" [(ngModel)]="busqueda" [ngModelOptions]="{ standalone: true }" autocomplete="off" spellcheck="false">
+          <div class="flex gap-2 mt-2">
+            <button type="button" class="btn-secundario min-h-[44px] px-4 text-sm" (click)="todos()">Todos{{ busqueda.trim() ? ' los de la búsqueda' : '' }}</button>
+            <button type="button" class="btn-secundario min-h-[44px] px-4 text-sm" (click)="ninguno()">Ninguno</button>
+          </div>
+        </div>
+        <div class="grid gap-2 max-h-[420px] overflow-y-auto">
+          @for (a of listaVarios; track a.uuid) {
+            <button type="button" class="w-full text-left rounded-2xl border-2 p-2.5 flex items-center gap-3 cursor-pointer"
+              [class.border-primario]="elegidos.has(a.uuid)" [class.bg-tarjeta-alta]="elegidos.has(a.uuid)" [class.border-borde]="!elegidos.has(a.uuid)"
+              [attr.aria-pressed]="elegidos.has(a.uuid)" (click)="alternar(a.uuid)">
+              <span class="grid place-items-center w-9 h-9 rounded-xl border-2 shrink-0" [class.border-primario]="elegidos.has(a.uuid)" [class.bg-primario]="elegidos.has(a.uuid)" [class.text-sobre-primario]="elegidos.has(a.uuid)">
+                @if (elegidos.has(a.uuid)) { <app-icono nombre="check" clase="w-6 h-6" /> }
+              </span>
+              <span class="grid place-items-center min-w-[48px] h-12 px-2 rounded-xl bg-tarjeta font-bold text-lg text-primario-texto shrink-0">
+                @if (a.chapeta) { {{ a.chapeta }} } @else { <app-icono nombre="vaca" clase="w-6 h-6" /> }
+              </span>
+              <span class="min-w-0 flex-1 leading-snug">
+                <span class="block font-bold truncate">{{ a.nombre || (a.chapeta ? 'Chapeta ' + a.chapeta : 'Sin chapeta') }}</span>
+                <span class="block text-sm text-suave truncate">{{ a.categoria }}@if (a.lote) { · {{ a.lote }} }</span>
+              </span>
+            </button>
+          } @empty {
+            <p class="ayuda m-0">No hay animales{{ busqueda.trim() ? ' con «' + busqueda + '»' : ' en la finca' }}.</p>
+          }
+        </div>
+        <p class="m-0 font-bold">{{ cuantos }} {{ cuantos === 1 ? 'elegido' : 'elegidos' }}</p>
+      </div>
+    }
+    @if (errores.animales) { <p class="aviso-error m-0">{{ errores.animales }}</p> }
+
+    <!-- DOSIS, FECHA Y NOTA -->
+    <div class="card p-4 grid gap-4">
+      <div>
+        <label class="label-field" for="dosis">Dosis (opcional)</label>
+        <input id="dosis" type="text" class="input-field" formControlName="dosis" maxlength="40" placeholder="Ej: 5 ml" [class.input-error]="errores.dosis">
+        @if (errores.dosis) { <p class="texto-error">{{ errores.dosis }}</p> }
+      </div>
+      <div>
+        <label class="label-field" for="fecha">¿Cuándo?</label>
+        <input id="fecha" type="datetime-local" class="input-field" formControlName="fecha" [max]="ahora" [class.input-error]="errores.fecha">
+        @if (errores.fecha) { <p class="texto-error">{{ errores.fecha }}</p> } @else { <p class="ayuda mt-1 mb-0">Ya está puesta la hora de ahora. Cámbiala solo si fue otro día.</p> }
+      </div>
+      <div>
+        <label class="label-field" for="nota">Nota (opcional)</label>
+        <input id="nota" type="text" class="input-field" formControlName="nota" maxlength="300" placeholder="Ej: lote de la vacuna 2245" [class.input-error]="errores.nota">
+        @if (errores.nota) { <p class="texto-error">{{ errores.nota }}</p> }
+      </div>
+    </div>
+
+    @if (vacuna && vacuna.DIAS_RETIRO_LECHE > 0) {
+      <p class="m-0 rounded-2xl bg-aviso-fondo text-aviso px-4 py-3 font-semibold">Ojo: con {{ vacuna.NOM_VACUNA }} no se vende la leche durante {{ vacuna.DIAS_RETIRO_LECHE }} {{ vacuna.DIAS_RETIRO_LECHE === 1 ? 'día' : 'días' }}.</p>
+    }
+
+    <button type="submit" class="btn-primary text-xl min-h-[64px] w-full" [disabled]="guardando">
+      @if (guardando) { Guardando... }
+      @else { <app-icono nombre="check" clase="w-7 h-7" /> Guardar{{ cuantos > 1 ? ' a ' + cuantos + ' animales' : '' }} }
+    </button>
+  </form>
+}

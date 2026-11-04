@@ -52,12 +52,9 @@
       <span class="text-center">Animal nuevo</span>
     </a>
   }
-  @for (boton of botones; track boton.ruta) {
-    @if (puedeRegistrarEventos || !boton.listo) {
-      <a [routerLink]="boton.ruta" class="btn-grande relative" [class.opacity-75]="!boton.listo">
-        @if (!boton.listo) {
-          <span class="badge badge-neutral absolute top-2.5 right-2.5">Pronto</span>
-        }
+  @if (puedeRegistrarEventos) {
+    @for (boton of botones; track boton.ruta; let ultimo = $last) {
+      <a [routerLink]="boton.ruta" class="btn-grande sm:col-span-1" [class.col-span-2]="ultimo && totalBotones % 2 === 1">
         <app-icono [nombre]="boton.icono" clase="w-10 h-10 text-primario-texto" />
         <span class="text-center leading-tight">{{ boton.texto }}</span>
       </a>

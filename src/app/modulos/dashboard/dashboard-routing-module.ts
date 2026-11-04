@@ -47,9 +47,8 @@ const routes: Routes = [
         data: { titulo: 'Mi perfil' }
       },
       {
-        path: 'evento/:tipo',
-        component: EnConstruccionComponent,
-        data: { titulo: 'Pronto', fase: 2, descripcion: 'Ordeño, vacunas, servicios, partos y salidas llegan en la fase 2.' }
+        path: 'evento',
+        loadChildren: () => import('./pages/eventos/eventos.module').then(m => m.EventosModule),
       },
       { path: '**', component: RutaNoEncontradaComponent },
     ]

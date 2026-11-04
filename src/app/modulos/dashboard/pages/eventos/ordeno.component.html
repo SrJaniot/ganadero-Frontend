@@ -1,0 +1,131 @@
+@if (!puedeRegistrar) {
+  <div class="card p-6 text-center">
+    <app-icono nombre="candado" clase="w-10 h-10 mx-auto text-suave" />
+    <p class="font-bold text-lg mt-3 mb-1">Tu rol no puede registrar ordeños</p>
+    <p class="text-suave m-0">Pídele permiso al dueño de la finca.</p>
+    <a routerLink="/app/hoy" class="btn-secundario mt-4">Volver</a>
+  </div>
+} @else if (guardadoUna) {
+  <!-- ORDEÑO DE UNA SOLA VACA GUARDADO -->
+  <div class="card p-6 text-center max-w-xl mx-auto">
+    <span class="grid place-items-center w-16 h-16 rounded-full bg-exito-fondo text-exito mx-auto"><app-icono nombre="check" clase="w-9 h-9" /></span>
+    <p class="text-xl font-bold mt-3 mb-1">Ordeño guardado</p>
+    <p class="text-lg m-0">{{ guardadoUna }}</p>
+    <p class="text-suave mt-1 mb-0">Está en el celular. Se sube solo cuando haya señal.</p>
+    <div class="grid gap-3 mt-5">
+      <button type="button" class="btn-primary text-lg min-h-[58px]" (click)="verTodas()"><app-icono nombre="gota" clase="w-6 h-6" /> Ordeñar las demás</button>
+      <button type="button" class="btn-secundario" (click)="verFicha()"><app-icono nombre="vaca" clase="w-5 h-5" /> Ver la ficha</button>
+    </div>
+  </div>
+} @else {
+  <div class="max-w-xl mx-auto grid gap-4">
+    <p class="ayuda m-0">Elige el día y la jornada, y escribe solo los litros de cada vaca. Las que dejes en blanco no se guardan.</p>
+
+    <!-- TOTAL DEL DIA -->
+    <div class="card p-4 flex items-center gap-4">
+      <span class="grid place-items-center w-14 h-14 rounded-2xl bg-info-fondo text-info shrink-0"><app-icono nombre="gota" clase="w-8 h-8" /></span>
+      <div class="min-w-0 flex-1 leading-snug">
+        <p class="m-0 text-suave text-sm">{{ esHoy ? 'Leche de hoy' : 'Leche del ' + diaLegible }}</p>
+        <p class="m-0 text-2xl font-bold">{{ litrosDia }} litros</p>
+        <p class="m-0 text-sm text-suave">Mañana {{ litrosManana }} · Tarde {{ litrosTarde }}</p>
+      </div>
+      @if (!uuidUna) {
+        <div class="text-right shrink-0 leading-snug">
+          <p class="m-0 text-2xl font-bold" [class.text-exito]="faltan === 0">{{ faltan }}</p>
+          <p class="m-0 text-sm text-suave">{{ faltan === 1 ? 'falta' : 'faltan' }}</p>
+        </div>
+      }
+    </div>
+
+    <!-- DIA -->
+    <div class="card p-4">
+      <label class="label-field" for="dia">Día</label>
+      <input id="dia" type="date" class="input-field text-lg" [ngModel]="dia" (ngModelChange)="cambiarDia($event)" [max]="hoy" [class.input-error]="errorDia">
+      @if (errorDia) { <p class="texto-error">{{ errorDia }}</p> } @else { <p class="ayuda mt-1 mb-0">Ya está puesto hoy. Cámbialo solo si ordeñó otro día.</p> }
+    </div>
+
+    <!-- JORNADA -->
+    <div class="grid grid-cols-2 gap-3">
+      <button type="button" class="btn-grande min-h-[96px]" [class.border-primario]="jornada === 'MANANA'" [class.bg-tarjeta-alta]="jornada === 'MANANA'"
+        [attr.aria-pressed]="jornada === 'MANANA'" (click)="elegirJornada('MANANA')">
+        <app-icono nombre="reloj" clase="w-9 h-9 text-primario-texto" /> Mañana
+      </button>
+      <button type="button" class="btn-grande min-h-[96px]" [class.border-primario]="jornada === 'TARDE'" [class.bg-tarjeta-alta]="jornada === 'TARDE'"
+        [attr.aria-pressed]="jornada === 'TARDE'" (click)="elegirJornada('TARDE')">
+        <app-icono nombre="reloj" clase="w-9 h-9 text-primario-texto" /> Tarde
+      </button>
+    </div>
+
+    <!-- FILTRO POR LOTE (OPCIONAL) -->
+    @if (!uuidUna && hayLotes) {
+      <div>
+        <p class="label-field mb-2">Lote</p>
+        <div class="flex gap-2 overflow-x-auto pb-1">
+          <button type="button" class="btn-secundario min-h-[44px] px-4 shrink-0" [class.border-primario]="filtroLote === ''" [class.bg-tarjeta-alta]="filtroLote === ''" (click)="elegirLote('')">Todos</button>
+          @for (l of lotes; track l.UUID_LOTE) {
+            <button type="button" class="btn-secundario min-h-[44px] px-4 shrink-0" [class.border-primario]="filtroLote === l.UUID_LOTE" [class.bg-tarjeta-alta]="filtroLote === l.UUID_LOTE" (click)="elegirLote(l.UUID_LOTE)">{{ l.NOM_LOTE }}</button>
+          }
+          @if (haySinLote) {
+            <button type="button" class="btn-secundario min-h-[44px] px-4 shrink-0" [class.border-primario]="filtroLote === 'SIN'" [class.bg-tarjeta-alta]="filtroLote === 'SIN'" (click)="elegirLote('SIN')">Sin lote</button>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- LAS VACAS -->
+    @if (cargando) {
+      <p class="text-suave m-0">Buscando las vacas en el celular...</p>
+    } @else if (motivoUna) {
+      <p class="aviso-error m-0">{{ motivoUna }}</p>
+      <button type="button" class="btn-secundario" (click)="verTodas()">Ver todas las vacas</button>
+    } @else {
+      @if (uuidUna) {
+        <div class="flex items-center justify-between gap-3">
+          <p class="m-0 font-bold">Ordeño de una sola vaca</p>
+          <button type="button" class="btn-secundario min-h-[44px] px-4 text-sm" (click)="verTodas()">Ver todas</button>
+        </div>
+      }
+      <div class="grid gap-2">
+        @for (v of vacas; track v.animal.UUID_ANIMAL) {
+          <div class="card p-3 flex items-center gap-3" [class.opacity-70]="v.litrosJornada !== null" [class.border-peligro]="errores[v.animal.UUID_ANIMAL]">
+            <span class="grid place-items-center min-w-[56px] h-14 px-2 rounded-2xl bg-tarjeta-alta font-bold text-xl text-primario-texto shrink-0">
+              @if (v.vista.chapeta) { {{ v.vista.chapeta }} } @else { <app-icono nombre="vaca" clase="w-7 h-7" /> }
+            </span>
+            <span class="min-w-0 flex-1 leading-snug">
+              <span class="block font-bold truncate">{{ v.vista.nombre || (v.vista.chapeta ? 'Chapeta ' + v.vista.chapeta : 'Sin chapeta') }}</span>
+              <span class="block text-sm text-suave truncate">{{ v.vista.categoria }}@if (v.vista.lote) { · {{ v.vista.lote }} }</span>
+              @if (errores[v.animal.UUID_ANIMAL]; as error) { <span class="block text-sm font-semibold text-peligro">{{ error }}</span> }
+            </span>
+            @if (v.litrosJornada !== null) {
+              <span class="flex items-center gap-1.5 shrink-0 rounded-2xl bg-exito-fondo text-exito font-bold px-3 py-2">
+                <app-icono nombre="check" clase="w-5 h-5" /> {{ v.litrosJornada }} L
+              </span>
+            } @else {
+              <label class="relative shrink-0 w-[120px]">
+                <span class="sr-only">Litros de {{ v.vista.chapeta || v.vista.nombre }}</span>
+                <input data-litros type="text" inputmode="decimal" enterkeyhint="next" class="input-field text-2xl font-bold min-h-[60px] pr-9 text-right"
+                  [(ngModel)]="litros[v.animal.UUID_ANIMAL]" (ngModelChange)="alEscribir(v.animal.UUID_ANIMAL)" (keydown.enter)="siguiente($event)"
+                  [class.input-error]="errores[v.animal.UUID_ANIMAL]" autocomplete="off" placeholder="0" maxlength="5">
+                <span class="absolute right-3 top-1/2 -translate-y-1/2 font-bold text-suave pointer-events-none">L</span>
+              </label>
+            }
+          </div>
+        } @empty {
+          <div class="card p-5 text-center">
+            <p class="font-bold m-0">No hay vacas para ordeñar{{ filtroLote ? ' en este lote' : '' }}</p>
+            <p class="text-suave mt-1 mb-0">Salen las hembras de la finca que ya no son terneras.</p>
+          </div>
+        }
+      </div>
+      @if (!uuidUna && yaOrdenadas > 0) {
+        <p class="ayuda m-0">Las marcadas con <b>✓</b> ya tienen el ordeño de la {{ nombreJornada(jornada) }} de ese día: no se repiten.</p>
+      }
+
+      <button type="button" class="btn-primary text-xl min-h-[64px] w-full sticky bottom-24 shadow-lg" [disabled]="guardando || porGuardar.length === 0 || !!errorDia" (click)="guardar()">
+        @if (guardando) { Guardando... }
+        @else if (porGuardar.length === 0) { Escribe los litros }
+        @else { <app-icono nombre="check" clase="w-7 h-7" /> Guardar {{ porGuardar.length }} {{ porGuardar.length === 1 ? 'ordeño' : 'ordeños' }} ({{ litrosPorGuardar }} L) }
+      </button>
+    }
+  </div>
+}

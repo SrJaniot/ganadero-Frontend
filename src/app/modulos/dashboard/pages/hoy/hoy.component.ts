@@ -8,10 +8,9 @@ interface BotonHoy {
   texto: string;
   icono: string;
   ruta: string;
-  listo: boolean;        //FASE 0: SOLO PESE FUNCIONA; LOS DEMAS LLEVAN "PRONTO"
 }
 
-//INICIO "¿QUE PASO HOY?": BOTONES GRANDES PARA REGISTRAR (FASE 0: PESE Y ANIMAL NUEVO; LOS DEMAS LLEGAN EN LA FASE 2)
+//INICIO "¿QUE PASO HOY?": BOTONES GRANDES PARA REGISTRAR (ANIMAL NUEVO, PESE Y LOS EVENTOS DE LA FASE 2)
 //TODO SALE DEL CELULAR (DEXIE): FUNCIONA SIN SEÑAL
 @Component({
   selector: 'app-hoy',
@@ -33,13 +32,19 @@ export class HoyComponent implements OnInit, OnDestroy {
   puedeCrearAnimal = this.seguridadService.tienePermiso(3, 'guardar');
 
   readonly botones: BotonHoy[] = [
-    { texto: 'Ordeñé', icono: 'gota', ruta: '/app/evento/ordeno', listo: false },
-    { texto: 'Pesé', icono: 'pesa', ruta: '/app/pesar', listo: true },
-    { texto: 'Vacuné / Traté', icono: 'jeringa', ruta: '/app/evento/vacunacion', listo: false },
-    { texto: 'Monta / Inseminación', icono: 'corazon', ruta: '/app/evento/servicio', listo: false },
-    { texto: 'Parió', icono: 'biberon', ruta: '/app/evento/parto', listo: false },
-    { texto: 'Salió', icono: 'salida', ruta: '/app/evento/salida', listo: false },
+    { texto: 'Ordeñé', icono: 'gota', ruta: '/app/evento/ordeno' },
+    { texto: 'Pesé', icono: 'pesa', ruta: '/app/pesar' },
+    { texto: 'Vacuné / Traté', icono: 'jeringa', ruta: '/app/evento/vacunacion' },
+    { texto: 'Monta / Inseminación', icono: 'corazon', ruta: '/app/evento/servicio' },
+    { texto: 'Palpé', icono: 'buscar', ruta: '/app/evento/palpacion' },
+    { texto: 'Parió', icono: 'biberon', ruta: '/app/evento/parto' },
+    { texto: 'Salió', icono: 'salida', ruta: '/app/evento/salida' },
   ];
+
+  //CUANTOS BOTONES SE VEN: SI SON IMPARES, EL ULTIMO OCUPA LAS DOS COLUMNAS EN EL CELULAR (LA CUADRICULA NO QUEDA COJA)
+  get totalBotones(): number {
+    return (this.puedeCrearAnimal ? 1 : 0) + (this.puedeRegistrarEventos ? this.botones.length : 0);
+  }
 
   private subscripciones: Subscription[] = [];
 
