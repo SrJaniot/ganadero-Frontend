@@ -24,6 +24,24 @@
   </a>
 </div>
 
+<!-- PARA HOY: LAS ALERTAS DE LA ULTIMA SINCRONIZACION (FASE 3) -->
+@if (puedeVerAlertas && alertas) {
+  <a routerLink="/app/alertas" class="card p-4 mb-4 flex items-start gap-3 no-underline text-texto">
+    <span class="grid place-items-center w-12 h-12 rounded-2xl shrink-0" [ngClass]="resumenAlertas.length ? 'bg-aviso-fondo text-aviso' : 'bg-exito-fondo text-exito'">
+      <app-icono [nombre]="resumenAlertas.length ? 'alerta' : 'check'" clase="w-7 h-7" />
+    </span>
+    <span class="min-w-0 flex-1 leading-snug">
+      <span class="block font-bold text-lg">Para hoy</span>
+      @for (l of resumenAlertas; track l.texto) {
+        <span class="block" [class.text-peligro]="l.urgente" [class.font-semibold]="l.urgente">{{ l.texto }}</span>
+      } @empty {
+        <span class="block text-suave">Nada urgente hoy</span>
+      }
+    </span>
+    <app-icono nombre="flecha" clase="w-5 h-5 text-suave mt-1" />
+  </a>
+}
+
 <!-- HATO VACIO: INVITAR A REGISTRAR EL PRIMER ANIMAL -->
 @if (hatoVacio) {
   <div class="ayuda-finca mb-4 flex items-start gap-3">

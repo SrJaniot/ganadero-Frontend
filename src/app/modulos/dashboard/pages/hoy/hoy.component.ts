@@ -1,5 +1,6 @@
 import { ChangeDetectorRef, Component, inject, OnDestroy, OnInit } from '@angular/core';
 import { Subscription } from 'rxjs';
+import { AlertasGuardadas } from '../../../../Modelos/GanaderoModel';
 import { AlmacenLocalService } from '../../../../servicios/almacen-local';
 import { SeguridadService } from '../../../../servicios/seguridad';
 import { EstadoSincronizacion, SincronizacionService } from '../../../../servicios/sincronizacion.service';
@@ -30,6 +31,25 @@ export class HoyComponent implements OnInit, OnDestroy {
   //MENU 4 = EVENTOS (PESE, ORDEÑE...), MENU 3 = HATO (ANIMAL NUEVO)
   puedeRegistrarEventos = this.seguridadService.tienePermiso(4, 'guardar');
   puedeCrearAnimal = this.seguridadService.tienePermiso(3, 'guardar');
+  //MENU 5 = HOY Y ALERTAS (LAS CALCULA LA BASE; EL CELULAR GUARDA LAS DE LA ULTIMA SINCRONIZACION)
+  puedeVerAlertas = this.seguridadService.tienePermiso(5, 'listar');
+  alertas: AlertasGuardadas | null = null;
+
+  //LO MAS URGENTE EN FRASES CORTAS PARA LA TARJETA "PARA HOY" (EL DETALLE ESTA EN /app/alertas)
+  get resumenAlertas(): { texto: string; urgente: boolean }[] {
+    const a = this.alertas?.alertas;
+    if (!a) return [];
+    const lineas: { texto: string; urgente: boolean }[] = [];
+    const n = (k: number, uno: string, varios: string) => `${k} ${k === 1 ? uno : varios}`;
+    if (a.RETIROS_LECHE.length) lineas.push({ texto: `No vender la leche de ${n(a.RETIROS_LECHE.length, 'animal', 'animales')}`, urgente: true });
+    if (a.PARTOS_PROXIMOS.length) lineas.push({ texto: `${n(a.PARTOS_PROXIMOS.length, 'parto próximo', 'partos próximos')}`, urgente: a.PARTOS_PROXIMOS.some(x => x.DIAS <= 7) });
+    if (a.PALPAR.length) lineas.push({ texto: `${n(a.PALPAR.length, 'para palpar', 'para palpar')}`, urgente: false });
+    if (a.VACIAS.length) lineas.push({ texto: `${n(a.VACIAS.length, 'vaca vacía', 'vacas vacías')}`, urgente: false });
+    if (a.VACUNAS_POR_APLICAR.length) lineas.push({ texto: `${n(a.VACUNAS_POR_APLICAR.length, 'vacuna por aplicar', 'vacunas por aplicar')}`, urgente: a.VACUNAS_POR_APLICAR.some(x => x.DIAS < 0) });
+    const ciclos = a.CICLOS_ICA.filter(c => c.VIGENTE && c.FALTAN > 0);
+    if (ciclos.length) lineas.push({ texto: `Ciclo del ICA: faltan ${n(ciclos[0].FALTAN, 'animal', 'animales')}`, urgente: true });
+    return lineas;
+  }
 
   readonly botones: BotonHoy[] = [
     { texto: 'Ordeñé', icono: 'gota', ruta: '/app/evento/ordeno' },
@@ -52,6 +72,13 @@ export class HoyComponent implements OnInit, OnDestroy {
     this.subscripciones.push(
       this.sincronizacion.estado$.subscribe(estado => { this.estado = estado; this.cd.detectChanges(); }),
     );
+    if (this.puedeVerAlertas) {
+      try {
+        this.subscripciones.push(
+          this.almacenLocal.observarMeta<AlertasGuardadas>('ALERTAS').subscribe(alertas => { this.alertas = alertas; this.cd.detectChanges(); }),
+        );
+      } catch { }
+    }
     try {
       this.subscripciones.push(
         this.almacenLocal.observarAnimales().subscribe({

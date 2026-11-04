@@ -260,6 +260,12 @@ export class AlmacenLocalService {
     return this.db.meta.put({ clave, valor });
   }
 
+  //UN VALOR DE meta QUE SE ACTUALIZA SOLO (LAS ALERTAS GUARDADAS EN LA ULTIMA SINCRONIZACION)
+  observarMeta<T = any>(clave: string): Observable<T | null> {
+    const db = this.db;
+    return from(liveQuery(async () => ((await db.meta.get(clave))?.valor ?? null) as T | null));
+  }
+
   //---------------------------------------------LECTURAS PARA LAS PANTALLAS-------------------------------------------------------
 
   //EL HATO DE HOY (ACTIVOS), QUE SE ACTUALIZA SOLO AL REGISTRAR O AL SINCRONIZAR

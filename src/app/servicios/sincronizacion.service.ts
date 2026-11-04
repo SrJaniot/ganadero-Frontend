@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
 import { BehaviorSubject, firstValueFrom, Observable, Subscription } from 'rxjs';
 import { ConfiguracionRutasBackend } from '../config/configuracion.rutas.backend';
-import { RespuestaServerCambios, RespuestaServerObtenerSincronizaciones, RespuestaServerSincronizar } from '../Modelos/GanaderoModel';
+import { AlertasGuardadas, RespuestaServerAlertas, RespuestaServerCambios, RespuestaServerObtenerSincronizaciones, RespuestaServerSincronizar } from '../Modelos/GanaderoModel';
 import { AlmacenLocalService } from './almacen-local';
 import { FincaActualService } from './finca-actual.service';
 import { SeguridadService } from './seguridad';
@@ -82,6 +82,11 @@ export class SincronizacionService {
     return this.http.post<RespuestaServerCambios>(this.url + 'ObtenerCambiosDesde', { id_finca, desde }, { headers: this.getHeaders() });
   }
 
+  //ALERTAS DE HOY (MENU 5). LAS CALCULA LA BASE (FUN_OBTENER_ALERTAS_JSON)
+  ObtenerAlertas(id_finca: number): Observable<RespuestaServerAlertas> {
+    return this.http.get<RespuestaServerAlertas>(this.url + 'ObtenerAlertas/' + id_finca, { headers: this.getHeaders() });
+  }
+
   ObtenerSincronizaciones(id_finca: number): Observable<RespuestaServerObtenerSincronizaciones> {
     return this.http.get<RespuestaServerObtenerSincronizaciones>(this.url + 'ObtenerSincronizaciones/' + id_finca, { headers: this.getHeaders() });
   }
@@ -92,6 +97,19 @@ export class SincronizacionService {
   programar(): void {
     clearTimeout(this.temporizadorProgramado);
     this.temporizadorProgramado = setTimeout(() => this.sincronizar(), 3000);
+  }
+
+  //PIDE LAS ALERTAS Y LAS GUARDA EN EL CELULAR ('ALERTAS'). NUNCA LANZA ERROR
+  private async actualizarAlertas(idFinca: number): Promise<void> {
+    try {
+      const respuesta = await firstValueFrom(this.ObtenerAlertas(idFinca));
+      if (respuesta.CODIGO === 200 && respuesta.DATOS) {
+        const guardadas: AlertasGuardadas = { alertas: respuesta.DATOS, recibidas: new Date().toISOString() };
+        await this.almacenLocal.guardarMeta('ALERTAS', guardadas);
+      }
+    } catch {
+      //SIN PERMISO DEL MENU 5 O SIN RED: SE QUEDAN LAS ULTIMAS GUARDADAS
+    }
   }
 
   //SUBE Y BAJA. DEVUELVE true SI TERMINO BIEN. NUNCA LANZA ERROR: LO DEJA EN estado$.error
@@ -148,6 +166,8 @@ export class SincronizacionService {
       if (cambios.DATOS.ROL_FINCA !== finca.rol || nombre !== finca.nombre) {
         this.fincaActual.actualizar({ rol: cambios.DATOS.ROL_FINCA, nombre });
       }
+      //3. LAS ALERTAS DE HOY: SE GUARDAN PARA VERLAS SIN SEÑAL. SI FALLAN, SE QUEDAN LAS ANTERIORES (NO DAÑA LA SINCRONIZACION)
+      await this.actualizarAlertas(finca.idFinca);
       const ahora = new Date().toISOString();
       await this.almacenLocal.guardarMeta('ULTIMA_SINCRONIZACION', ahora);
       this.cambiarEstado({ ultimaSincronizacion: ahora });

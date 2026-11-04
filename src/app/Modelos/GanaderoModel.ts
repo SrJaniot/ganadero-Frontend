@@ -205,6 +205,23 @@ export interface EventosAnimal {
   salidas: SalidaDTO[];
 }
 
+//ALERTAS DE LA FASE 3 (FUN_OBTENER_ALERTAS_JSON). EL CELULAR GUARDA LA ULTIMA RESPUESTA PARA VERLA SIN SEÑAL --------------------------
+export interface AnimalAlerta { UUID_ANIMAL: string; CHAPETA_ANIMAL: string | null; NOM_ANIMAL: string | null; }
+export interface AlertasDTO {
+  FECHA: string;                       //EL DIA PARA EL QUE SE CALCULARON (AAAA-MM-DD)
+  PARTOS_PROXIMOS: (AnimalAlerta & { FECHA_PARTO_PROBABLE: string; DIAS: number; SEGUN: 'SERVICIO' | 'PALPACION'; PADRE: string | null })[];
+  PALPAR: (AnimalAlerta & { FECHA_SERVICIO: string; DIAS_DESDE_SERVICIO: number })[];
+  VACIAS: (AnimalAlerta & { FECHA_ULTIMO_PARTO: string; DIAS_VACIA: number })[];
+  VACUNAS_POR_APLICAR: (AnimalAlerta & { ID_VACUNA: number; NOM_VACUNA: string; FECHA_PROXIMA_DOSIS: string; DIAS: number })[];
+  RETIROS_LECHE: (AnimalAlerta & { NOM_VACUNA: string; FECHA_FIN_RETIRO: string; DIAS_RESTANTES: number })[];
+  CICLOS_ICA: { ID_CICLO: number; NOM_CICLO: string; NOM_VACUNA: string; FECHA_INICIO_CICLO: string; FECHA_FIN_CICLO: string; VIGENTE: boolean; DIAS_PARA_EMPEZAR: number; DIAS_PARA_TERMINAR: number; FALTAN: number }[];
+  DIAS_VACIA_ALERTA: number;
+  DIAS_AVISO_PARTO: number;
+}
+//LO QUE SE GUARDA EN EL CELULAR: LAS ALERTAS Y CUANDO SE PIDIERON (ISO)
+export interface AlertasGuardadas { alertas: AlertasDTO; recibidas: string; }
+export interface RespuestaServerAlertas extends RespuestaServer { DATOS?: AlertasDTO }
+
 //SINCRONIZACION ---------------------------------------------------------------------------------------------------------------------
 export type TipoRegistro = 'LOTE' | 'ANIMAL' | 'PESAJE' | 'VACUNACION' | 'SERVICIO' | 'PALPACION' | 'PARTO' | 'ORDENO' | 'SALIDA';
 export type OperacionRegistro = 'CREAR' | 'EDITAR' | 'ANULAR';

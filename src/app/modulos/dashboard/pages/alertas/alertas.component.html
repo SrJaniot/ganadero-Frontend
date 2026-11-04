@@ -1,0 +1,160 @@
+<div class="max-w-xl mx-auto grid gap-4">
+
+  <!-- DE CUANDO SON LAS ALERTAS -->
+  <div class="card p-4 flex items-center gap-3">
+    <span class="grid place-items-center w-12 h-12 rounded-2xl bg-info-fondo text-info shrink-0"><app-icono nombre="reloj" clase="w-7 h-7" /></span>
+    <div class="min-w-0 flex-1 leading-snug">
+      @if (cargando) {
+        <p class="m-0 text-suave">Buscando las alertas en el celular...</p>
+      } @else if (!guardadas) {
+        <p class="m-0 font-bold">Todavía no hay alertas en este celular</p>
+        <p class="m-0 text-sm text-suave">Salen después de sincronizar con señal.</p>
+      } @else {
+        <p class="m-0 font-bold">{{ total === 0 ? 'Todo al día' : total + (total === 1 ? ' cosa para hoy' : ' cosas para hoy') }}</p>
+        <p class="m-0 text-sm text-suave">Calculadas el {{ recibidas }}</p>
+      }
+    </div>
+    <button type="button" class="btn-secundario px-4 shrink-0" (click)="actualizar()" [disabled]="!estado.enLinea || estado.sincronizando"
+      [attr.aria-label]="'Actualizar las alertas'">
+      <app-icono nombre="sincronizar" clase="w-5 h-5" [class.animate-spin]="estado.sincronizando" />
+    </button>
+  </div>
+  @if (guardadas && diasViejas > 0) {
+    <p class="aviso-error m-0" role="status">Estas alertas son de hace {{ diasViejas }} {{ diasViejas === 1 ? 'día' : 'días' }}. {{ estado.enLinea ? 'Toca el botón para actualizarlas.' : 'Se actualizan cuando haya señal.' }}</p>
+  }
+  <p class="ayuda m-0">Las calcula el servidor con lo que ya subió. Lo que registres sin señal cambia las alertas cuando se sincronice.</p>
+
+  @if (a) {
+    <!-- 1. LECHE QUE NO SE PUEDE VENDER (LO MAS URGENTE) -->
+    @if (a.RETIROS_LECHE.length) {
+      <section class="card p-4 border-peligro/40">
+        <h2 class="text-lg font-semibold flex items-center gap-2 text-peligro"><app-icono nombre="gota" clase="w-6 h-6" /> No vender la leche de</h2>
+        <ul class="m-0 mt-2 p-0 list-none grid gap-2">
+          @for (x of a.RETIROS_LECHE; track x.UUID_ANIMAL) {
+            <li>
+              <a [routerLink]="['/app/hato', x.UUID_ANIMAL]" class="flex items-center gap-3 no-underline text-texto rounded-2xl bg-peligro-fondo p-3">
+                <span class="min-w-0 flex-1 leading-snug">
+                  <b class="block truncate">{{ nombre(x) }}</b>
+                  <span class="text-sm">{{ x.NOM_VACUNA }}</span>
+                </span>
+                <span class="text-right text-sm leading-snug"><b class="block">hasta el {{ fechaLegible(x.FECHA_FIN_RETIRO) }}</b>{{ x.DIAS_RESTANTES === 0 ? 'último día' : 'faltan ' + x.DIAS_RESTANTES + (x.DIAS_RESTANTES === 1 ? ' día' : ' días') }}</span>
+              </a>
+            </li>
+          }
+        </ul>
+      </section>
+    }
+
+    <!-- 2. PARTOS PROXIMOS -->
+    @if (a.PARTOS_PROXIMOS.length) {
+      <section class="card p-4">
+        <h2 class="text-lg font-semibold flex items-center gap-2"><app-icono nombre="biberon" clase="w-6 h-6" /> Partos próximos</h2>
+        <p class="ayuda mt-0.5 mb-2">Los que deben parir en los próximos {{ a.DIAS_AVISO_PARTO }} días (o ya están atrasados).</p>
+        <ul class="m-0 p-0 list-none grid gap-2">
+          @for (x of a.PARTOS_PROXIMOS; track x.UUID_ANIMAL) {
+            <li class="flex items-center gap-3 rounded-2xl bg-tarjeta-alta p-3">
+              <a [routerLink]="['/app/hato', x.UUID_ANIMAL]" class="min-w-0 flex-1 leading-snug no-underline text-texto">
+                <b class="block truncate">{{ nombre(x) }}</b>
+                <span class="text-sm" [class.text-peligro]="x.DIAS < 0" [class.font-bold]="x.DIAS <= 7">{{ fechaLegible(x.FECHA_PARTO_PROBABLE) }} · {{ cuando(x.DIAS) }}</span>
+                <span class="block text-xs text-suave">Según {{ x.SEGUN === 'SERVICIO' ? 'el servicio' : 'la palpación' }}{{ x.PADRE ? ' · padre ' + x.PADRE : '' }}</span>
+              </a>
+              @if (puedeRegistrar) {
+                <a [routerLink]="['/app/evento/parto']" [queryParams]="{ animal: x.UUID_ANIMAL }" class="btn-secundario px-4 min-h-[44px] shrink-0">Parió</a>
+              }
+            </li>
+          }
+        </ul>
+      </section>
+    }
+
+    <!-- 3. PALPAR -->
+    @if (a.PALPAR.length) {
+      <section class="card p-4">
+        <h2 class="text-lg font-semibold flex items-center gap-2"><app-icono nombre="buscar" clase="w-6 h-6" /> Para palpar</h2>
+        <p class="ayuda mt-0.5 mb-2">Servidas hace más de mes y medio y todavía sin palpar.</p>
+        <ul class="m-0 p-0 list-none grid gap-2">
+          @for (x of a.PALPAR; track x.UUID_ANIMAL) {
+            <li class="flex items-center gap-3 rounded-2xl bg-tarjeta-alta p-3">
+              <a [routerLink]="['/app/hato', x.UUID_ANIMAL]" class="min-w-0 flex-1 leading-snug no-underline text-texto">
+                <b class="block truncate">{{ nombre(x) }}</b>
+                <span class="text-sm">Servida hace {{ x.DIAS_DESDE_SERVICIO }} días</span>
+              </a>
+              @if (puedeRegistrar) {
+                <a [routerLink]="['/app/evento/palpacion']" [queryParams]="{ animal: x.UUID_ANIMAL }" class="btn-secundario px-4 min-h-[44px] shrink-0">Palpar</a>
+              }
+            </li>
+          }
+        </ul>
+      </section>
+    }
+
+    <!-- 4. VACAS VACIAS -->
+    @if (a.VACIAS.length) {
+      <section class="card p-4">
+        <h2 class="text-lg font-semibold flex items-center gap-2"><app-icono nombre="alerta" clase="w-6 h-6" /> Vacas vacías</h2>
+        <p class="ayuda mt-0.5 mb-2">Parieron hace más de {{ a.DIAS_VACIA_ALERTA }} días y no están servidas ni preñadas.</p>
+        <ul class="m-0 p-0 list-none grid gap-2">
+          @for (x of a.VACIAS; track x.UUID_ANIMAL) {
+            <li class="flex items-center gap-3 rounded-2xl bg-aviso-fondo p-3">
+              <a [routerLink]="['/app/hato', x.UUID_ANIMAL]" class="min-w-0 flex-1 leading-snug no-underline text-texto">
+                <b class="block truncate">{{ nombre(x) }}</b>
+                <span class="text-sm">{{ x.DIAS_VACIA }} días desde el parto ({{ fechaLegible(x.FECHA_ULTIMO_PARTO) }})</span>
+              </a>
+              @if (puedeRegistrar) {
+                <a [routerLink]="['/app/evento/servicio']" [queryParams]="{ animal: x.UUID_ANIMAL }" class="btn-secundario px-4 min-h-[44px] shrink-0">Monta</a>
+              }
+            </li>
+          }
+        </ul>
+      </section>
+    }
+
+    <!-- 5. VACUNAS POR APLICAR -->
+    @if (a.VACUNAS_POR_APLICAR.length) {
+      <section class="card p-4">
+        <h2 class="text-lg font-semibold flex items-center gap-2"><app-icono nombre="jeringa" clase="w-6 h-6" /> Vacunas por aplicar</h2>
+        <ul class="m-0 mt-2 p-0 list-none grid gap-2">
+          @for (x of a.VACUNAS_POR_APLICAR; track x.UUID_ANIMAL + '-' + x.ID_VACUNA) {
+            <li class="flex items-center gap-3 rounded-2xl bg-tarjeta-alta p-3">
+              <a [routerLink]="['/app/hato', x.UUID_ANIMAL]" class="min-w-0 flex-1 leading-snug no-underline text-texto">
+                <b class="block truncate">{{ nombre(x) }}</b>
+                <span class="text-sm">{{ x.NOM_VACUNA }} · <span [class.text-peligro]="x.DIAS < 0" [class.font-bold]="x.DIAS < 0">{{ cuando(x.DIAS) }}</span></span>
+              </a>
+              @if (puedeRegistrar) {
+                <a [routerLink]="['/app/evento/vacunacion']" [queryParams]="{ animal: x.UUID_ANIMAL }" class="btn-secundario px-4 min-h-[44px] shrink-0">Vacunar</a>
+              }
+            </li>
+          }
+        </ul>
+      </section>
+    }
+
+    <!-- 6. CICLOS DEL ICA -->
+    @if (a.CICLOS_ICA.length) {
+      <section class="card p-4">
+        <h2 class="text-lg font-semibold flex items-center gap-2"><app-icono nombre="calendario" clase="w-6 h-6" /> Ciclos del ICA</h2>
+        <ul class="m-0 mt-2 p-0 list-none grid gap-2">
+          @for (c of a.CICLOS_ICA; track c.ID_CICLO) {
+            <li class="rounded-2xl p-3" [ngClass]="c.VIGENTE && c.FALTAN > 0 ? 'bg-aviso-fondo' : 'bg-tarjeta-alta'">
+              <b class="block">{{ c.NOM_CICLO }} · {{ c.NOM_VACUNA }}</b>
+              <span class="block text-sm">Del {{ fechaLegible(c.FECHA_INICIO_CICLO) }} al {{ fechaLegible(c.FECHA_FIN_CICLO) }} ·
+                {{ c.VIGENTE ? 'termina ' + cuando(c.DIAS_PARA_TERMINAR) : 'empieza ' + cuando(c.DIAS_PARA_EMPEZAR) }}</span>
+              <span class="block text-sm font-bold mt-1">{{ c.FALTAN === 0 ? 'Todo el hato ya está vacunado en este ciclo' : 'Faltan ' + c.FALTAN + (c.FALTAN === 1 ? ' animal' : ' animales') + ' por vacunar' }}</span>
+              @if (puedeRegistrar && c.FALTAN > 0) {
+                <a routerLink="/app/evento/vacunacion" class="btn-secundario mt-2 min-h-[44px]">Vacunar</a>
+              }
+            </li>
+          }
+        </ul>
+      </section>
+    }
+
+    @if (total === 0) {
+      <div class="card p-6 text-center">
+        <span class="inline-grid place-items-center w-16 h-16 rounded-3xl bg-exito-fondo text-exito"><app-icono nombre="check" clase="w-9 h-9" /></span>
+        <p class="font-bold text-lg mt-3 mb-0">Nada urgente hoy</p>
+        <p class="text-suave mt-1 mb-0">No hay partos cerca, retiros de leche, vacas vacías ni vacunas pendientes.</p>
+      </div>
+    }
+  }
+</div>

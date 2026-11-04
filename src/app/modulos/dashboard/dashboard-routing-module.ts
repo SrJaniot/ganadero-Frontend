@@ -22,6 +22,11 @@ const routes: Routes = [
         data: { titulo: '¿Qué pasó hoy?' }
       },
       {
+        path: 'alertas',
+        loadChildren: () => import('./pages/alertas/alertas.module').then(m => m.AlertasModule),
+        data: { titulo: 'Para hoy' }
+      },
+      {
         path: 'hato',
         loadChildren: () => import('./pages/hato/hato.module').then(m => m.HatoModule),
         data: { titulo: 'Hato' }
