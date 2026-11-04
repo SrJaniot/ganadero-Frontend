@@ -1,0 +1,21 @@
+<IfModule mod_rewrite.c>
+  # ANGULAR EN APACHE: LAS RUTAS (/app/hoy, /seguridad/ingreso...) LAS RESUELVE ANGULAR, NO SON CARPETAS REALES
+  # -Indexes: NO MOSTRAR LA LISTA DE ARCHIVOS DE UNA CARPETA. /api/... NO PASA POR AQUI (LO ATIENDE EL PROXY DEL SITIO)
+  # LOS ARCHIVOS QUE EXISTEN (manifest.webmanifest, sw.js, .js, .css, iconos) SE SIRVEN TAL CUAL
+  # DENTRO DEL VHOST %{REQUEST_FILENAME} NO ES LA RUTA EN DISCO: SE USA %{DOCUMENT_ROOT}%{REQUEST_URI} (COMO EN MONCHIS EN EL SERVIDOR)
+  Options -Indexes +FollowSymLinks
+  RewriteEngine On
+  RewriteBase /
+  RewriteRule ^index\.html$ - [L]
+  RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI} !-f
+  RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI} !-d
+  RewriteRule . index.html [L]
+</IfModule>
+
+# PWA: EL MANIFEST CON SU TIPO Y EL SERVICE WORKER SIN CACHE DEL NAVEGADOR (ASI LAS VERSIONES NUEVAS LLEGAN DE UNA)
+AddType application/manifest+json .webmanifest
+<IfModule mod_headers.c>
+  <Files "sw.js">
+    Header set Cache-Control "no-cache"
+  </Files>
+</IfModule>

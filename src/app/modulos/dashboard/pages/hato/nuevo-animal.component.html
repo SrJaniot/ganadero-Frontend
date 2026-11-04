@@ -1,0 +1,127 @@
+@if (!puedeCrearAnimal) {
+  <div class="card p-6 text-center">
+    <app-icono nombre="candado" clase="w-10 h-10 mx-auto text-suave" />
+    <p class="font-bold text-lg mt-3 mb-1">Tu rol no puede registrar animales</p>
+    <p class="text-suave m-0">Pídele al dueño de la finca que lo registre.</p>
+    <a routerLink="/app/hato" class="btn-secundario mt-4">Volver al hato</a>
+  </div>
+} @else if (guardado) {
+  <!-- GUARDADO: PESARLO AHORA, OTRO O VOLVER -->
+  <div class="card p-6 text-center max-w-xl mx-auto">
+    <span class="grid place-items-center w-16 h-16 rounded-full bg-exito-fondo text-exito mx-auto"><app-icono nombre="check" clase="w-9 h-9" /></span>
+    <p class="text-xl font-bold mt-3 mb-1">Quedó en el hato: {{ guardado.texto }}</p>
+    <p class="text-suave m-0">Está guardado en el celular. Se sube solo cuando haya señal.</p>
+    <div class="grid gap-3 mt-5">
+      <button type="button" class="btn-primary text-lg" (click)="pesarAhora()"><app-icono nombre="pesa" clase="w-6 h-6" /> Pesarlo ahora</button>
+      <button type="button" class="btn-secundario" (click)="otroAnimal()"><app-icono nombre="mas" clase="w-5 h-5" /> Registrar otro animal</button>
+      <a routerLink="/app/hato" class="btn-secundario"><app-icono nombre="vaca" clase="w-5 h-5" /> Volver al hato</a>
+    </div>
+  </div>
+} @else {
+  <form class="max-w-xl mx-auto grid gap-5" [formGroup]="form" (ngSubmit)="guardar()" novalidate>
+    <p class="ayuda-finca m-0">Escribe la <b>chapeta</b> o un <b>nombre</b> (uno de los dos). Lo demás se puede completar después. No necesitas señal.</p>
+
+    <!-- CHAPETA Y NOMBRE -->
+    <div class="card p-4 grid gap-4">
+      <div>
+        <label class="label-field" for="chapeta">Chapeta (número de la oreja)</label>
+        <input id="chapeta" type="text" inputmode="numeric" class="input-field text-2xl font-bold uppercase" formControlName="chapeta"
+          [class.input-error]="errores.chapeta" maxlength="20" autocomplete="off" spellcheck="false" placeholder="Ej: 23">
+        @if (errores.chapeta) { <p class="texto-error">{{ errores.chapeta }}</p> }
+        <p class="ayuda mt-1 mb-0">Números, letras y guion. Si no tiene chapeta, déjalo vacío y escribe el nombre.</p>
+      </div>
+      <div>
+        <label class="label-field" for="nombre">Nombre (opcional)</label>
+        <input id="nombre" type="text" class="input-field" formControlName="nombre" [class.input-error]="errores.nombre" maxlength="60" placeholder="Ej: Lucero">
+        @if (errores.nombre) { <p class="texto-error">{{ errores.nombre }}</p> }
+      </div>
+    </div>
+
+    <!-- HEMBRA O MACHO -->
+    <div class="card p-4">
+      <p class="label-field">¿Hembra o macho?</p>
+      <div class="grid grid-cols-2 gap-3">
+        <button type="button" class="btn-grande min-h-[96px]" [class.border-primario]="v.sexo === 'H'" [class.bg-tarjeta-alta]="v.sexo === 'H'"
+          [attr.aria-pressed]="v.sexo === 'H'" (click)="elegirSexo('H')">
+          <app-icono [nombre]="v.sexo === 'H' ? 'check' : 'vaca'" clase="w-8 h-8 text-primario-texto" /> Hembra
+        </button>
+        <button type="button" class="btn-grande min-h-[96px]" [class.border-primario]="v.sexo === 'M'" [class.bg-tarjeta-alta]="v.sexo === 'M'"
+          [attr.aria-pressed]="v.sexo === 'M'" (click)="elegirSexo('M')">
+          <app-icono [nombre]="v.sexo === 'M' ? 'check' : 'vaca'" clase="w-8 h-8 text-primario-texto" /> Macho
+        </button>
+      </div>
+      @if (errores.sexo) { <p class="texto-error">{{ errores.sexo }}</p> }
+    </div>
+
+    <!-- NACIMIENTO: FECHA EXACTA O EDAD APROXIMADA -->
+    <div class="card p-4 grid gap-3">
+      <p class="label-field m-0">¿Cuándo nació?</p>
+      <div class="grid grid-cols-2 gap-3">
+        <button type="button" [class]="v.sabeFecha ? 'btn-primary' : 'btn-secundario'" (click)="elegirSabeFecha(true)">
+          <app-icono nombre="calendario" clase="w-5 h-5" /> Sé la fecha
+        </button>
+        <button type="button" [class]="!v.sabeFecha ? 'btn-primary' : 'btn-secundario'" (click)="elegirSabeFecha(false)">
+          <app-icono nombre="reloj" clase="w-5 h-5" /> No sé la fecha
+        </button>
+      </div>
+      @if (v.sabeFecha) {
+        <div>
+          <label class="label-field" for="fechaNacimiento">Fecha de nacimiento</label>
+          <input id="fechaNacimiento" type="date" class="input-field" formControlName="fechaNacimiento" [max]="hoy" [min]="hace25" [class.input-error]="errores.nacimiento">
+          @if (errores.nacimiento) { <p class="texto-error">{{ errores.nacimiento }}</p> }
+        </div>
+      } @else {
+        <div>
+          <label class="label-field" for="edadMeses">¿Cuántos meses tiene, más o menos?</label>
+          <input id="edadMeses" type="text" inputmode="numeric" maxlength="3" class="input-field text-xl" formControlName="edadMeses" [class.input-error]="errores.edad" placeholder="Ej: 18">
+          @if (errores.edad) { <p class="texto-error">{{ errores.edad }}</p> }
+          <p class="ayuda mt-1 mb-0">
+            Un año son 12 meses; dos años, 24.
+            @if (fechaNacimientoCalculada) { Queda como nacido hacia el <b>{{ fechaNacimientoLegible }}</b> (fecha aproximada). }
+          </p>
+        </div>
+      }
+    </div>
+
+    <!-- RAZA (OPCIONAL) -->
+    <div class="card p-4">
+      <label class="label-field" for="raza">Raza (opcional)</label>
+      <select id="raza" class="input-field" formControlName="idRaza">
+        <option value="">No sé / cruce sin definir</option>
+        @for (raza of razas; track raza.ID_RAZA) {
+          <option [value]="raza.ID_RAZA">{{ raza.NOM_RAZA }}</option>
+        }
+      </select>
+      @if (razas.length === 0) {
+        <p class="ayuda mt-1 mb-0">La lista de razas baja al sincronizar con señal. Puedes dejarla vacía.</p>
+      }
+    </div>
+
+    <!-- ORIGEN -->
+    <div class="card p-4 grid gap-3">
+      <p class="label-field m-0">¿De dónde salió?</p>
+      <div class="grid grid-cols-2 gap-3">
+        <button type="button" [class]="v.origen === 'NACIDO' ? 'btn-primary' : 'btn-secundario'" (click)="elegirOrigen('NACIDO')">
+          <app-icono nombre="biberon" clase="w-5 h-5" /> Nació aquí
+        </button>
+        <button type="button" [class]="v.origen === 'COMPRADO' ? 'btn-primary' : 'btn-secundario'" (click)="elegirOrigen('COMPRADO')">
+          <app-icono nombre="finca" clase="w-5 h-5" /> Lo compré
+        </button>
+      </div>
+      @if (v.origen === 'COMPRADO') {
+        <div>
+          <label class="label-field" for="fechaIngreso">¿Cuándo llegó a la finca?</label>
+          <input id="fechaIngreso" type="date" class="input-field" formControlName="fechaIngreso" [max]="hoy" [class.input-error]="errores.llegada">
+          @if (errores.llegada) { <p class="texto-error">{{ errores.llegada }}</p> }
+        </div>
+      }
+    </div>
+
+    <div class="flex flex-col-reverse sm:flex-row gap-3 sm:justify-end">
+      <a routerLink="/app/hato" class="btn-secundario">Cancelar</a>
+      <button type="submit" class="btn-primary text-lg" [disabled]="guardando">
+        @if (guardando) { Guardando... } @else { <app-icono nombre="check" clase="w-6 h-6" /> Guardar animal }
+      </button>
+    </div>
+  </form>
+}

@@ -1,0 +1,295 @@
+/* Import Tailwind v4 */
+@use "tailwindcss";
+/* Fuentes de Ganadero (Bricolage Grotesque para títulos e Inter para el texto, como la propuesta): se cargan en index.html */
+
+/* =========================
+   COLORES DE GANADERO: SOLO TEMA CLARO Y DE ALTO CONTRASTE (SE USA AL SOL EN EL POTRERO)
+   PALETA: VERDE PASTO #2F6B2F, TIERRA #8A5A2B, CREMA #F6F4EC, AMARILLO PAJA #E8B13A
+   uso: bg-fondo, bg-tarjeta, text-texto, text-suave, border-borde, bg-primario, text-exito ...
+   LOS COLORES "TEXTO" DE CADA ESTADO SON MAS OSCUROS QUE EL DE RELLENO PARA QUE SE LEAN (CONTRASTE >= 4.5)
+========================= */
+:root {
+  --fondo: #F6F4EC;            /* crema: fondo de la app */
+  --tarjeta: #FFFFFF;
+  --tarjeta-alta: #EEF2E6;     /* recuadros dentro de tarjetas y filas al pasar el dedo */
+  --durazno: #F3E7D6;          /* fondos suaves tierra */
+  --borde: #D5D9C8;
+  --texto: #18210F;            /* casi negro verdoso */
+  --suave: #4B5641;            /* textos secundarios */
+  --primario: #2F6B2F;         /* verde pasto: botones */
+  --primario-fuerte: #24552A;  /* al presionar */
+  --primario-texto: #2F6B2F;   /* verde para textos y enlaces */
+  --sobre-primario: #FFFFFF;   /* texto encima del verde */
+  --exito: #1F5F2A;
+  --exito-relleno: #4CAF50;
+  --exito-fondo: #E2F2E0;
+  --aviso: #6B4A00;
+  --aviso-relleno: #E8B13A;    /* amarillo paja */
+  --aviso-fondo: #FBF0D4;
+  --peligro: #A4231C;
+  --peligro-relleno: #E2574C;
+  --peligro-fondo: #FBE3E0;
+  --info: #24507A;
+  --info-fondo: #E2ECF6;
+  --foco: #E8B13A;
+  --campo: #FFFFFF;
+  --lateral: #1F3B1F;          /* barra superior en verde oscuro */
+  --lateral-texto: #EEF2E6;
+  --lateral-activo: #E8B13A33;
+  --sombra: 0 6px 22px -10px rgba(24, 33, 15, .25), 0 2px 6px -3px rgba(24, 33, 15, .10);
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-fondo: var(--fondo);
+  --color-tarjeta: var(--tarjeta);
+  --color-tarjeta-alta: var(--tarjeta-alta);
+  --color-durazno: var(--durazno);
+  --color-borde: var(--borde);
+  --color-texto: var(--texto);
+  --color-suave: var(--suave);
+  --color-primario: var(--primario);
+  --color-primario-fuerte: var(--primario-fuerte);
+  --color-primario-texto: var(--primario-texto);
+  --color-sobre-primario: var(--sobre-primario);
+  --color-exito: var(--exito);
+  --color-exito-relleno: var(--exito-relleno);
+  --color-exito-fondo: var(--exito-fondo);
+  --color-aviso: var(--aviso);
+  --color-aviso-relleno: var(--aviso-relleno);
+  --color-aviso-fondo: var(--aviso-fondo);
+  --color-peligro: var(--peligro);
+  --color-peligro-relleno: var(--peligro-relleno);
+  --color-peligro-fondo: var(--peligro-fondo);
+  --color-info: var(--info);
+  --color-info-fondo: var(--info-fondo);
+  --color-foco: var(--foco);
+  --color-campo: var(--campo);
+  --color-lateral: var(--lateral);
+  --color-lateral-texto: var(--lateral-texto);
+  --color-lateral-activo: var(--lateral-activo);
+
+  --font-titulo: 'Bricolage Grotesque', 'Inter', system-ui, sans-serif;
+  --font-texto: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --shadow-suave: var(--sombra);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  min-height: 100%;
+  margin: 0;
+  font-family: var(--font-texto);
+  font-size: 17px; /* LETRA GRANDE PARA EL CAMPO */
+  line-height: 1.55;
+  background-color: var(--fondo);
+  color: var(--texto);
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-titulo);
+  font-weight: 600;
+  line-height: 1.25;
+  margin: 0;
+}
+
+/* EN @layer base PARA QUE LAS CLASES DE TAILWIND (text-*) SIGAN MANDANDO SOBRE ESTE COLOR */
+@layer base {
+  a {
+    color: var(--primario-texto);
+  }
+}
+
+:focus-visible {
+  outline: 3px solid var(--foco);
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-track { background: var(--fondo); }
+::-webkit-scrollbar-thumb { background: var(--borde); border-radius: 9px; }
+::-webkit-scrollbar-thumb:hover { background: var(--suave); }
+
+/* =========================
+   COMPONENTES (Tailwind v4)
+========================= */
+
+@layer components {
+
+  /* BOTON GRANDE DE "¿QUE PASO HOY?": UN TOQUE CON EL DEDO, ICONO Y PALABRA DEL CAMPO */
+  .btn-grande {
+    @apply flex flex-col items-center justify-center gap-2 min-h-[120px] p-4 rounded-3xl bg-tarjeta border-2 border-borde text-texto font-bold text-lg shadow-suave transition-all duration-150 active:scale-[.97] hover:border-primario cursor-pointer no-underline disabled:opacity-45 disabled:cursor-not-allowed;
+  }
+
+  .card {
+    @apply bg-tarjeta border border-borde rounded-3xl shadow-suave;
+  }
+
+  /* BOTONES: REDONDEADOS Y GRANDES (PENSADOS PARA EL DEDO EN EL CELULAR) */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 min-h-[52px] px-6 rounded-full font-bold text-base bg-primario text-sobre-primario border-2 border-primario transition-all duration-200 active:scale-[.97] hover:bg-primario-fuerte hover:border-primario-fuerte disabled:opacity-45 disabled:cursor-not-allowed cursor-pointer no-underline;
+  }
+
+  .btn-secundario, .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 min-h-[52px] px-6 rounded-full font-bold text-base bg-tarjeta text-texto border-2 border-borde transition-all duration-200 active:scale-[.97] hover:border-primario disabled:opacity-45 disabled:cursor-not-allowed cursor-pointer no-underline;
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 min-h-[52px] px-6 rounded-full font-bold text-base bg-peligro-relleno text-texto border-2 border-peligro-relleno transition-all duration-200 active:scale-[.97] hover:brightness-95 disabled:opacity-45 disabled:cursor-not-allowed cursor-pointer;
+  }
+
+  /* BOTON SOLO CON ICONO (EDITAR, CERRAR...) */
+  .btn-icono {
+    @apply inline-grid place-items-center w-10 h-10 rounded-full text-suave hover:text-texto hover:bg-tarjeta-alta border-0 bg-transparent cursor-pointer transition-colors duration-150;
+  }
+
+  .label-field {
+    @apply block font-bold text-sm mb-1.5;
+  }
+
+  .input-field {
+    @apply w-full min-h-[52px] border-2 border-borde rounded-2xl px-4 text-[17px] bg-campo text-texto placeholder-suave/70 transition-shadow duration-200 focus:outline-none focus:border-foco focus:ring-4 focus:ring-foco/20;
+  }
+
+  .input-error {
+    @apply border-peligro focus:border-peligro focus:ring-peligro/20;
+  }
+
+  .texto-error {
+    @apply text-[13px] font-semibold text-peligro mt-1;
+  }
+
+  .ayuda {
+    @apply text-[13px] text-suave;
+  }
+
+  /* MENSAJE DE ERROR DEL SERVIDOR DEBAJO DE UN FORMULARIO */
+  .aviso-error {
+    @apply text-sm font-semibold text-peligro bg-peligro-fondo rounded-2xl px-4 py-3;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-bold whitespace-nowrap border;
+  }
+
+  .badge-success {
+    @apply bg-exito-fondo text-exito border-exito/25;
+  }
+
+  .badge-warning {
+    @apply bg-aviso-fondo text-aviso border-aviso/25;
+  }
+
+  .badge-danger {
+    @apply bg-peligro-fondo text-peligro border-peligro/25;
+  }
+
+  .badge-info {
+    @apply bg-info-fondo text-info border-info/25;
+  }
+
+  .badge-primario {
+    @apply bg-durazno text-texto border-primario/30;
+  }
+
+  .badge-neutral {
+    @apply bg-tarjeta-alta text-suave border-borde;
+  }
+
+  /* CIRCULO DE COLOR DE CADA PERSONA (CON SUS INICIALES) */
+  .avatar {
+    @apply inline-grid place-items-center rounded-full font-titulo font-semibold text-texto border-2 border-texto/15 shrink-0;
+  }
+
+  /* BARRA LATERAL */
+  .sidebar-link {
+    @apply flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-lateral-texto/85 hover:text-white hover:bg-white/8 transition-all duration-200 cursor-pointer text-[15px] font-semibold no-underline border border-transparent;
+  }
+
+  .sidebar-link.active {
+    @apply bg-lateral-activo text-[#FFB08F] border-primario/40;
+  }
+
+  /* MODALES Y PANELES PROPIOS */
+  .modal-fondo {
+    @apply fixed inset-0 bg-[#100C16]/55 z-40;
+  }
+
+  /* MODAL CENTRADO: <div class="modal-centro"><div class="modal-caja">...</div></div> */
+  .modal-centro {
+    @apply fixed inset-0 z-50 flex items-end sm:items-center justify-center p-3 sm:p-4 bg-[#100C16]/55;
+  }
+
+  .modal-caja {
+    @apply bg-tarjeta border border-borde rounded-3xl shadow-2xl w-full max-w-lg p-6 animate-slide-up max-h-[92vh] overflow-y-auto;
+  }
+
+  /* TABLAS */
+  .tabla-finca {
+    @apply w-full text-sm text-left border-collapse;
+  }
+
+  .tabla-finca thead tr {
+    @apply border-b-2 border-borde;
+  }
+
+  .tabla-finca thead th {
+    @apply py-3 px-4 text-suave font-bold text-xs uppercase tracking-wide whitespace-nowrap;
+  }
+
+  .tabla-finca tbody tr {
+    @apply border-b border-borde/70 hover:bg-tarjeta-alta transition-colors duration-150;
+  }
+
+  .tabla-finca tbody td {
+    @apply py-3 px-4 align-middle;
+  }
+
+  /* EXPLICACIONES DENTRO DE LAS PANTALLAS */
+  .ayuda-finca {
+    @apply bg-durazno/55 border border-primario/25 rounded-3xl px-5 py-4 text-sm text-texto;
+  }
+
+  .ayuda-finca b {
+    @apply text-texto;
+  }
+}
+
+/* =========================
+   ANIMACIONES
+========================= */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes entrar-derecha {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@utility animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+@utility animate-slide-up {
+  animation: slide-up 0.35s ease-out;
+}
+
+@utility animate-entrar-derecha {
+  animation: entrar-derecha 0.25s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

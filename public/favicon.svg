@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- ICONO DE GANADERO: CABEZA DE VACA SENCILLA SOBRE VERDE PASTO -->
+  <rect width="64" height="64" rx="14" fill="#2F6B2F"/>
+  <path d="M14 20c-4 0-7-3-7-6 4 0 7 1 9 3M50 20c4 0 7-3 7-6-4 0-7 1-9 3" fill="none" stroke="#F6F4EC" stroke-width="3" stroke-linecap="round"/>
+  <path d="M18 18c2-3 8-5 14-5s12 2 14 5l-1 18c0 8-6 14-13 14s-13-6-13-14z" fill="#F6F4EC"/>
+  <ellipse cx="32" cy="42" rx="10" ry="7" fill="#E8B13A"/>
+  <circle cx="28" cy="42" r="1.8" fill="#18210F"/><circle cx="36" cy="42" r="1.8" fill="#18210F"/>
+  <circle cx="25" cy="28" r="2.6" fill="#18210F"/><circle cx="39" cy="28" r="2.6" fill="#18210F"/>
+</svg>

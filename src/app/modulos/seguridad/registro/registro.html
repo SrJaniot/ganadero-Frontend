@@ -1,0 +1,67 @@
+<div class="min-h-screen flex items-center justify-center px-4 py-10">
+  <div class="w-full max-w-[420px] animate-slide-up">
+    <div class="flex flex-col items-center text-center mb-6">
+      <span class="inline-grid place-items-center w-20 h-20 rounded-3xl bg-primario text-sobre-primario"><app-icono nombre="vaca" clase="w-11 h-11" /></span>
+      <h1 class="text-3xl font-bold mt-3">Crear mi cuenta</h1>
+      <p class="text-suave mt-1 mb-0">Para el dueño de la finca. Después creas tu finca y las cuentas de tus vaqueros</p>
+    </div>
+
+    <form class="card p-6 md:p-7" [formGroup]="registroForm" (ngSubmit)="registrar()" novalidate>
+      <div class="mb-4">
+        <label class="label-field" for="nombre">Tu nombre</label>
+        <input id="nombre" type="text" class="input-field" formControlName="nombre" autocomplete="name" placeholder="Pedro Gómez" [class.input-error]="campoInvalido('nombre')">
+        @if (campoInvalido('nombre')) {
+          <p class="texto-error">Escribe tu nombre</p>
+        }
+      </div>
+
+      <div class="mb-4">
+        <label class="label-field" for="celular">Celular</label>
+        <input id="celular" type="tel" inputmode="numeric" class="input-field" formControlName="celular" autocomplete="username" placeholder="300 123 4567" [class.input-error]="campoInvalido('celular')">
+        @if (campoInvalido('celular')) {
+          <p class="texto-error">Escribe tu número de celular (10 dígitos)</p>
+        } @else {
+          <p class="ayuda mt-1 mb-0">Con este número entras a la app.</p>
+        }
+      </div>
+
+      <div class="mb-4">
+        <label class="label-field" for="clave">Clave</label>
+        <div class="relative">
+          <input id="clave" [type]="mostrarClave ? 'text' : 'password'" class="input-field pr-12" formControlName="clave" autocomplete="new-password" [class.input-error]="campoInvalido('clave')">
+          <button type="button" class="btn-icono absolute right-1 top-1/2 -translate-y-1/2"
+            (click)="mostrarClave = !mostrarClave" [attr.aria-label]="mostrarClave ? 'Ocultar la clave' : 'Mostrar la clave'">
+            <app-icono [nombre]="mostrarClave ? 'ojo-cerrado' : 'ojo'" clase="w-5 h-5" />
+          </button>
+        </div>
+        @if (campoInvalido('clave')) {
+          <p class="texto-error">La clave debe tener al menos {{ longitudMinimaClave }} letras o números</p>
+        } @else {
+          <p class="ayuda mt-1 mb-0">Al menos {{ longitudMinimaClave }} letras o números. Que sea fácil de recordar para ti.</p>
+        }
+      </div>
+
+      <div class="mb-5">
+        <label class="label-field" for="confirmar_clave">Escribe la clave otra vez</label>
+        <input id="confirmar_clave" [type]="mostrarClave ? 'text' : 'password'" class="input-field" formControlName="confirmar_clave" autocomplete="new-password" [class.input-error]="campoInvalido('confirmar_clave') || clavesDiferentes">
+        @if (campoInvalido('confirmar_clave')) {
+          <p class="texto-error">Escribe la clave otra vez</p>
+        } @else if (clavesDiferentes) {
+          <p class="texto-error">Las dos claves no son iguales</p>
+        }
+      </div>
+
+      @if (errorRegistro) {
+        <p class="aviso-error mt-0 mb-4" role="alert">{{ errorRegistro }}</p>
+      }
+
+      <button type="submit" class="btn-primary w-full" [disabled]="guardando">{{ guardando ? 'Creando la cuenta...' : 'Crear mi cuenta' }}</button>
+    </form>
+
+    <div class="card p-5 mt-4 text-center">
+      <p class="m-0 font-semibold">¿Ya tienes cuenta?</p>
+      <a routerLink="/seguridad/ingreso" class="btn-secundario w-full mt-3">Entrar</a>
+    </div>
+    <p class="ayuda text-center mt-5 mb-0">Para crear la cuenta se necesita señal. Después la app funciona sin ella.</p>
+  </div>
+</div>

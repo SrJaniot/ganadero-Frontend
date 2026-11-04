@@ -1,0 +1,68 @@
+<div class="min-h-screen flex flex-col">
+
+  <!-- BARRA SUPERIOR: FINCA, TITULO E INDICADOR DE SINCRONIZACION (SIEMPRE VISIBLE) -->
+  <header class="sticky top-0 z-30 bg-lateral text-lateral-texto">
+    <div class="max-w-[960px] mx-auto px-4 py-2.5 flex items-center gap-3">
+      <span class="grid place-items-center w-10 h-10 rounded-2xl bg-white/10 shrink-0"><app-icono nombre="vaca" clase="w-6 h-6" /></span>
+      <div class="min-w-0 flex-1 leading-tight">
+        <div class="font-titulo font-semibold text-white text-[17px] truncate">{{ finca?.nombre }}</div>
+        <div class="text-xs text-lateral-texto/80 truncate">{{ nombreRol }}</div>
+      </div>
+      <button type="button" class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-bold cursor-pointer min-h-[40px]"
+        [ngClass]="claseIndicador" (click)="tocarIndicador()" [attr.aria-label]="'Estado: ' + textoIndicador">
+        <app-icono [nombre]="iconoIndicador" clase="w-4.5 h-4.5" [class.animate-spin]="estado.sincronizando" />
+        <span class="whitespace-nowrap">{{ textoIndicador }}</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- AVISO: FALTA LA CLAVE (EL TOKEN VENCIO). LO DEL CELULAR SIGUE AHI -->
+  @if (necesitaClave) {
+    <div class="bg-peligro-fondo text-peligro border-b border-peligro/20">
+      <div class="max-w-[960px] mx-auto px-4 py-2.5 flex flex-wrap items-center gap-3 text-sm font-semibold">
+        <app-icono nombre="candado" clase="w-5 h-5" />
+        <span class="flex-1 min-w-[200px]">Tu sesión venció. Puedes seguir registrando: se sube cuando vuelvas a escribir tu clave.</span>
+        <button type="button" class="btn-primary min-h-[40px]" (click)="abrirClave()">Escribir mi clave</button>
+      </div>
+    </div>
+  }
+
+  <main class="flex-1 w-full max-w-[960px] mx-auto px-4 pt-4 pb-28">
+    @if (titulo) {
+      <h1 class="text-2xl font-semibold mb-4">{{ titulo }}</h1>
+    }
+    <router-outlet />
+  </main>
+
+  <!-- BARRA DE ABAJO: LOS MENUS DEL ROL (BOTONES GRANDES PARA EL DEDO) -->
+  <nav class="fixed bottom-0 inset-x-0 z-40 bg-tarjeta border-t-2 border-borde" aria-label="Menú">
+    <div class="max-w-[960px] mx-auto grid" [style.grid-template-columns]="'repeat(' + menus.length + ', minmax(0, 1fr))'">
+      @for (menu of menus; track menu.ruta) {
+        <a [routerLink]="menu.ruta" routerLinkActive="text-primario-texto bg-tarjeta-alta" class="flex flex-col items-center justify-center gap-1 min-h-[66px] px-1 text-suave font-bold text-[13px] no-underline">
+          <app-icono [nombre]="menu.icono" clase="w-7 h-7" />
+          <span class="truncate max-w-full">{{ menu.texto }}</span>
+        </a>
+      }
+    </div>
+  </nav>
+</div>
+
+<!-- MODAL: VOLVER A ESCRIBIR LA CLAVE (MISMO CELULAR) -->
+@if (claveAbierta) {
+  <div class="modal-fondo animate-fade-in" (click)="cerrarClave()"></div>
+  <div class="modal-centro">
+    <form class="modal-caja p-6 animate-slide-up" [formGroup]="claveForm" (ngSubmit)="reingresar()" novalidate role="dialog" aria-labelledby="titulo-clave">
+      <h2 id="titulo-clave" class="text-xl font-semibold">Escribe tu clave</h2>
+      <p class="text-suave mt-1 mb-4">Lo que registraste sigue guardado en el celular. Con tu clave se sube.</p>
+      <label class="label-field" for="clave-reingreso">Clave</label>
+      <input id="clave-reingreso" type="password" class="input-field" formControlName="clave" autocomplete="current-password">
+      @if (errorClave) {
+        <p class="aviso-error mt-3 mb-0" role="alert">{{ errorClave }}</p>
+      }
+      <div class="flex gap-3 justify-end mt-5">
+        <button type="button" class="btn-secundario" (click)="cerrarClave()">Después</button>
+        <button type="submit" class="btn-primary" [disabled]="reingresando">{{ reingresando ? 'Revisando...' : 'Entrar' }}</button>
+      </div>
+    </form>
+  </div>
+}

@@ -1,0 +1,44 @@
+<div class="min-h-screen flex items-center justify-center px-4 py-10">
+  <div class="w-full max-w-[420px] animate-slide-up">
+    <div class="flex flex-col items-center text-center mb-6">
+      <span class="inline-grid place-items-center w-20 h-20 rounded-3xl bg-primario text-sobre-primario"><app-icono nombre="vaca" clase="w-11 h-11" /></span>
+      <h1 class="text-3xl font-bold mt-3">Ganadero</h1>
+      <p class="text-suave mt-1 mb-0">El hato en el celular, aunque no haya señal</p>
+    </div>
+
+    <form class="card p-6 md:p-7" [formGroup]="ingresoForm" (ngSubmit)="entrar()" novalidate>
+      <div class="mb-4">
+        <label class="label-field" for="celular">Celular</label>
+        <input id="celular" type="tel" inputmode="numeric" class="input-field" formControlName="celular" autocomplete="username" placeholder="300 123 4567" [class.input-error]="campoInvalido('celular')">
+        @if (campoInvalido('celular')) {
+          <p class="texto-error">Escribe tu número de celular (10 dígitos)</p>
+        }
+      </div>
+      <div class="mb-5">
+        <label class="label-field" for="clave">Clave</label>
+        <div class="relative">
+          <input id="clave" [type]="mostrarClave ? 'text' : 'password'" class="input-field pr-12" formControlName="clave" autocomplete="current-password" [class.input-error]="campoInvalido('clave')">
+          <button type="button" class="btn-icono absolute right-1 top-1/2 -translate-y-1/2"
+            (click)="mostrarClave = !mostrarClave" [attr.aria-label]="mostrarClave ? 'Ocultar la clave' : 'Mostrar la clave'">
+            <app-icono [nombre]="mostrarClave ? 'ojo-cerrado' : 'ojo'" clase="w-5 h-5" />
+          </button>
+        </div>
+        @if (campoInvalido('clave')) {
+          <p class="texto-error">Escribe tu clave</p>
+        }
+      </div>
+
+      @if (errorIngreso) {
+        <p class="aviso-error mt-0 mb-4" role="alert">{{ errorIngreso }}</p>
+      }
+
+      <button type="submit" class="btn-primary w-full" [disabled]="ingresando">{{ ingresando ? 'Entrando...' : 'Entrar' }}</button>
+    </form>
+
+    <div class="card p-5 mt-4 text-center">
+      <p class="m-0 font-semibold">¿Es dueño de una finca y aún no tiene cuenta?</p>
+      <a routerLink="/seguridad/registro" class="btn-secundario w-full mt-3">Crear mi cuenta</a>
+    </div>
+    <p class="ayuda text-center mt-5 mb-0">Si trabaja en una finca, la cuenta se la crea el dueño desde «Mi finca».<br>Después de varios intentos fallidos la cuenta se bloquea unos minutos.</p>
+  </div>
+</div>

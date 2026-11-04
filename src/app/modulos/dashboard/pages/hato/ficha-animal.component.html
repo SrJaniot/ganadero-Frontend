@@ -1,0 +1,91 @@
+@if (cargando) {
+  <div class="card p-6 text-suave text-center">Buscando el animal en el celular...</div>
+} @else if (noExiste || !animal || !vista) {
+  <div class="card p-6 text-center">
+    <app-icono nombre="alerta" clase="w-10 h-10 mx-auto text-aviso" />
+    <p class="font-bold text-lg mt-3 mb-1">Este animal no está en el celular</p>
+    <p class="text-suave m-0">Puede que lo hayan descartado o que todavía no haya bajado. Sincroniza y vuelve a buscarlo.</p>
+    <a routerLink="/app/hato" class="btn-primary mt-4"><app-icono nombre="vaca" clase="w-5 h-5" /> Volver al hato</a>
+  </div>
+} @else {
+  <!-- CABECERA: CHAPETA GRANDE, NOMBRE, CATEGORIA -->
+  <div class="card p-5 mb-4">
+    <div class="flex items-center gap-4">
+      <span class="grid place-items-center min-w-[80px] h-20 px-3 rounded-3xl bg-tarjeta-alta font-bold text-3xl text-primario-texto shrink-0">
+        @if (vista.chapeta) { {{ vista.chapeta }} } @else { <app-icono nombre="vaca" clase="w-10 h-10" /> }
+      </span>
+      <div class="min-w-0 flex-1">
+        <p class="text-2xl font-bold m-0 truncate">{{ vista.nombre || (vista.chapeta ? 'Chapeta ' + vista.chapeta : 'Sin chapeta') }}</p>
+        <p class="text-suave text-lg m-0">{{ vista.categoria }} · {{ edad }}</p>
+        <div class="flex flex-wrap gap-2 mt-1.5">
+          <span class="badge" [class.badge-success]="activo" [class.badge-neutral]="!activo">{{ estado }}</span>
+          @if (vista.pendiente) {
+            <span class="badge badge-warning"><app-icono nombre="celular" clase="w-3.5 h-3.5" /> por subir</span>
+          }
+        </div>
+      </div>
+    </div>
+
+    @if (puedePesar && activo) {
+      <a [routerLink]="['/app/pesar']" [queryParams]="{ animal: animal.UUID_ANIMAL }" class="btn-primary w-full mt-4 text-lg min-h-[58px]">
+        <app-icono nombre="pesa" clase="w-6 h-6" /> Pesar
+      </a>
+    }
+  </div>
+
+  <div class="grid gap-4 md:grid-cols-[1fr_1.3fr] items-start">
+    <!-- DATOS -->
+    <div class="card p-5">
+      <h2 class="text-lg font-semibold mt-0 mb-3">Datos</h2>
+      <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2.5 m-0">
+        <dt class="text-suave">Último peso</dt>
+        <dd class="m-0 font-bold">
+          @if (vista.peso !== null) { {{ vista.peso }} kg <span class="font-normal text-suave">el {{ vista.fechaPeso }}</span> } @else { Sin pesar }
+        </dd>
+        <dt class="text-suave">Sexo</dt>
+        <dd class="m-0 font-semibold">{{ sexo }}</dd>
+        <dt class="text-suave">Nació</dt>
+        <dd class="m-0 font-semibold">{{ nacimiento }}</dd>
+        <dt class="text-suave">Raza</dt>
+        <dd class="m-0 font-semibold">{{ raza }}</dd>
+        <dt class="text-suave">Origen</dt>
+        <dd class="m-0 font-semibold">{{ origen }}</dd>
+        @if (animal.CHAPETA_MADRE) {
+          <dt class="text-suave">Madre</dt>
+          <dd class="m-0 font-semibold">{{ animal.CHAPETA_MADRE }}</dd>
+        }
+        @if (animal.NOM_LOTE) {
+          <dt class="text-suave">Lote</dt>
+          <dd class="m-0 font-semibold">{{ animal.NOM_LOTE }}</dd>
+        }
+      </dl>
+    </div>
+
+    <!-- LINEA DE TIEMPO VERTICAL (LO MAS NUEVO ARRIBA) -->
+    <div class="card p-5">
+      <h2 class="text-lg font-semibold mt-0 mb-1">Lo que le ha pasado</h2>
+      <p class="ayuda mt-0 mb-4">Lo más nuevo arriba. Es lo que hay en este celular; lo de otros celulares llega al sincronizar.</p>
+      <ol class="relative list-none p-0 m-0">
+        @for (evento of eventos; track evento.clave; let ultimo = $last) {
+          <li class="relative flex gap-3.5 pb-5">
+            @if (!ultimo) {
+              <span class="absolute left-[21px] top-11 bottom-0 w-0.5 bg-borde" aria-hidden="true"></span>
+            }
+            <span class="relative z-10 grid place-items-center w-11 h-11 rounded-full bg-tarjeta-alta text-primario-texto border-2 border-borde shrink-0">
+              <app-icono [nombre]="evento.icono" clase="w-6 h-6" />
+            </span>
+            <div class="min-w-0 pt-0.5">
+              <p class="font-bold m-0 flex flex-wrap items-center gap-2">
+                {{ evento.titulo }}
+                @if (evento.cinta) { <span class="badge badge-info">cinta</span> }
+                @if (evento.pendiente) { <span class="badge badge-warning">por subir</span> }
+              </p>
+              <p class="text-sm text-suave m-0">{{ evento.fechaTexto }}</p>
+              @if (evento.detalle) { <p class="text-sm m-0 mt-0.5">{{ evento.detalle }}</p> }
+            </div>
+          </li>
+        }
+      </ol>
+    </div>
+  </div>
+}

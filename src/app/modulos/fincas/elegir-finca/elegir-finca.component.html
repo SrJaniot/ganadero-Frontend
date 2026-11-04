@@ -1,0 +1,145 @@
+<div class="min-h-screen px-4 py-8 md:py-12">
+  <div class="w-full max-w-[720px] mx-auto animate-slide-up">
+
+    <!-- ENCABEZADO -->
+    <div class="flex items-center gap-3 mb-6">
+      <span class="inline-grid place-items-center w-14 h-14 rounded-2xl bg-primario text-sobre-primario shrink-0"><app-icono nombre="finca" clase="w-8 h-8" /></span>
+      <div class="min-w-0 flex-1">
+        <h1 class="text-2xl md:text-3xl font-bold leading-tight">
+          {{ sinFincas || mostrarFormulario ? 'Crear la finca' : 'Mis fincas' }}
+        </h1>
+        @if (nombreUsuario) {
+          <p class="text-suave m-0 truncate">Hola, {{ nombreUsuario }}</p>
+        }
+      </div>
+    </div>
+
+    @if (cargando) {
+      <div class="card p-10 flex flex-col items-center gap-3 text-center">
+        <div class="w-10 h-10 rounded-full border-4 border-borde border-t-primario animate-spin"></div>
+        <p class="text-suave m-0">Buscando tus fincas...</p>
+      </div>
+
+    } @else if (sinSenal) {
+      <!-- SIN SEÑAL -->
+      <div class="card p-6 md:p-8 flex flex-col items-center gap-3 text-center">
+        <span class="inline-grid place-items-center w-16 h-16 rounded-3xl bg-aviso-fondo text-aviso"><app-icono nombre="sin-senal" clase="w-9 h-9" /></span>
+        <h2 class="text-xl font-semibold">No hay señal</h2>
+        @if (actual) {
+          <p class="m-0">Puedes seguir trabajando en <b>{{ actual.nombre }}</b> con lo que está guardado en el celular. Lo que registres sube cuando vuelva la señal.</p>
+          <button type="button" class="btn-primary w-full sm:w-auto mt-2" (click)="seguirConLaActual()">
+            <app-icono nombre="flecha" clase="w-5 h-5" /> Seguir con {{ actual.nombre }}
+          </button>
+        } @else {
+          <p class="m-0">Se necesita señal la primera vez para traer tus fincas. Después la app funciona sin ella.</p>
+        }
+        <button type="button" class="btn-secundario w-full sm:w-auto" (click)="cargarFincas()">
+          <app-icono nombre="sincronizar" clase="w-5 h-5" /> Intentar de nuevo
+        </button>
+      </div>
+
+    } @else if (errorCarga) {
+      <div class="card p-8 flex flex-col items-center gap-3 text-center">
+        <app-icono nombre="alerta" clase="w-9 h-9 text-peligro" />
+        <p class="m-0 font-semibold">No se pudieron traer tus fincas.</p>
+        @if (actual) {
+          <button type="button" class="btn-primary w-full sm:w-auto" (click)="seguirConLaActual()">Seguir con {{ actual.nombre }}</button>
+        }
+        <button type="button" class="btn-secundario w-full sm:w-auto" (click)="cargarFincas()">Intentar de nuevo</button>
+      </div>
+
+    } @else if (sinFincas || mostrarFormulario) {
+      <!-- CREAR LA FINCA -->
+      @if (sinFincas) {
+        <div class="ayuda-finca mb-4">
+          <b>Todavía no tienes finca en la app.</b> Si eres el dueño, créala aquí: solo se necesitan el nombre y el municipio.
+          Si trabajas en una finca, pídele al dueño que te agregue desde «Mi finca».
+        </div>
+      }
+
+      <form class="card p-6 md:p-7" [formGroup]="fincaForm" (ngSubmit)="crearFinca()" novalidate>
+        <div class="grid gap-4 md:grid-cols-2">
+          <div class="md:col-span-2">
+            <label class="label-field" for="nom_finca">Nombre de la finca</label>
+            <input id="nom_finca" type="text" class="input-field" formControlName="nom_finca" autocomplete="off" placeholder="La Esperanza" [class.input-error]="campoInvalido('nom_finca')">
+            @if (campoInvalido('nom_finca')) {
+              <p class="texto-error">Escribe el nombre de la finca</p>
+            }
+          </div>
+
+          <div>
+            <label class="label-field" for="municipio_finca">Municipio</label>
+            <input id="municipio_finca" type="text" class="input-field" formControlName="municipio_finca" autocomplete="off" placeholder="San Vicente de Chucurí" [class.input-error]="campoInvalido('municipio_finca')">
+            @if (campoInvalido('municipio_finca')) {
+              <p class="texto-error">Escribe el municipio</p>
+            }
+          </div>
+
+          <div>
+            <label class="label-field" for="vereda_finca">Vereda <span class="font-normal text-suave">(si quieres)</span></label>
+            <input id="vereda_finca" type="text" class="input-field" formControlName="vereda_finca" autocomplete="off">
+          </div>
+
+          <div>
+            <label class="label-field" for="registro_ica_finca">Registro ICA <span class="font-normal text-suave">(si quieres)</span></label>
+            <input id="registro_ica_finca" type="text" class="input-field" formControlName="registro_ica_finca" autocomplete="off">
+            <p class="ayuda mt-1 mb-0">El número del predio que da el ICA para las vacunas y las guías de movilización.</p>
+          </div>
+
+          <div>
+            <label class="label-field" for="hierro_finca">Hierro <span class="font-normal text-suave">(si quieres)</span></label>
+            <input id="hierro_finca" type="text" class="input-field" formControlName="hierro_finca" autocomplete="off">
+            <p class="ayuda mt-1 mb-0">Las letras o la marca con que se marca el ganado de la finca.</p>
+          </div>
+        </div>
+
+        <div class="flex flex-col-reverse sm:flex-row gap-3 sm:justify-end mt-6">
+          @if (mostrarFormulario && !sinFincas) {
+            <button type="button" class="btn-secundario" (click)="cancelarFormulario()" [disabled]="guardando">Cancelar</button>
+          }
+          <button type="submit" class="btn-primary" [disabled]="guardando">
+            <app-icono nombre="check" clase="w-5 h-5" /> {{ guardando ? 'Creando...' : 'Crear la finca' }}
+          </button>
+        </div>
+      </form>
+
+    } @else {
+      <!-- LISTA DE FINCAS -->
+      <p class="text-suave mt-0 mb-4">Toca la finca en la que vas a trabajar.</p>
+      <div class="grid gap-4 sm:grid-cols-2">
+        @for (finca of fincas; track finca.idFinca) {
+          <button type="button" class="card p-5 text-left flex flex-col gap-3 cursor-pointer border-2 hover:border-primario active:scale-[.98] transition-all min-h-[120px]"
+            [class.border-primario]="actual?.idFinca === finca.idFinca" (click)="elegir(finca)" [attr.aria-label]="'Entrar a ' + finca.nombre">
+            <div class="flex items-start gap-3">
+              <span class="inline-grid place-items-center w-12 h-12 rounded-2xl bg-tarjeta-alta text-primario-texto shrink-0"><app-icono nombre="finca" clase="w-7 h-7" /></span>
+              <div class="min-w-0 flex-1">
+                <h2 class="text-xl font-semibold leading-tight break-words">{{ finca.nombre }}</h2>
+                <p class="text-suave m-0 mt-0.5">{{ finca.municipio }}{{ finca.vereda ? ' · ' + finca.vereda : '' }}</p>
+              </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="badge" [class.badge-primario]="finca.rol === 'DUENIO'" [class.badge-neutral]="finca.rol !== 'DUENIO'">{{ finca.nombreRol }}</span>
+              <span class="badge badge-info"><app-icono nombre="vaca" clase="w-3.5 h-3.5" /> {{ finca.animalesActivos }} {{ finca.animalesActivos === 1 ? 'animal' : 'animales' }}</span>
+              @if (actual?.idFinca === finca.idFinca) {
+                <span class="badge badge-success">Abierta ahora</span>
+              }
+            </div>
+          </button>
+        }
+      </div>
+
+      @if (puedeCrearFinca) {
+        <button type="button" class="btn-secundario w-full sm:w-auto mt-5" (click)="abrirFormulario()">
+          <app-icono nombre="mas" clase="w-5 h-5" /> Agregar otra finca
+        </button>
+      }
+    }
+
+    <!-- SALIR -->
+    <div class="mt-8 text-center">
+      <a routerLink="/seguridad/cerrar-sesion" class="btn-secundario w-full sm:w-auto">
+        <app-icono nombre="salir" clase="w-5 h-5" /> Cerrar sesión
+      </a>
+    </div>
+  </div>
+</div>

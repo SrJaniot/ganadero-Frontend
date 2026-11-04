@@ -1,0 +1,61 @@
+<div class="min-h-screen flex items-center justify-center px-4 py-10">
+  @if (revisando || pendientes === 0) {
+    <!-- SIN PENDIENTES: CIERRA DIRECTO -->
+    <div class="card max-w-sm w-full p-8 text-center animate-slide-up">
+      <span class="inline-grid place-items-center w-20 h-20 rounded-3xl bg-tarjeta-alta text-primario-texto"><app-icono nombre="vaca" clase="w-11 h-11" /></span>
+      @if (revisando) {
+        <h1 class="text-xl font-bold mt-4">Un momento...</h1>
+        <p class="text-suave mt-2 mb-0">Revisando que todo haya subido.</p>
+      } @else {
+        <h1 class="text-xl font-bold mt-4">¡Hasta pronto!</h1>
+        <p class="text-suave mt-2 mb-0">Tu sesión quedó cerrada.</p>
+      }
+      <div class="w-8 h-8 mx-auto mt-6 rounded-full border-4 border-borde border-t-primario animate-spin"></div>
+    </div>
+  } @else {
+    <!-- CON PENDIENTES: AVISAR ANTES DE BORRAR LO DEL CELULAR -->
+    <div class="card max-w-[440px] w-full p-6 md:p-7 animate-slide-up">
+      <div class="flex flex-col items-center text-center">
+        <span class="inline-grid place-items-center w-20 h-20 rounded-3xl bg-aviso-fondo text-aviso"><app-icono nombre="nube-subir" clase="w-11 h-11" /></span>
+        <h1 class="text-2xl font-bold mt-4">Falta subir {{ pendientes }} {{ pendientes === 1 ? 'registro' : 'registros' }}</h1>
+        <p class="mt-2 mb-0">Hay {{ pendientes === 1 ? 'un registro guardado' : pendientes + ' registros guardados' }} en este celular que todavía no han llegado al servidor.</p>
+      </div>
+
+      <div class="ayuda-finca mt-5">
+        <b>Al cerrar la sesión se borra todo lo del celular.</b> Si cierras sin sincronizar, lo que no ha subido se pierde para siempre.
+        Lo mejor es sincronizar primero, con señal.
+      </div>
+
+      @if (errorSincronizar) {
+        <p class="aviso-error mt-4 mb-0" role="alert">{{ errorSincronizar }}</p>
+      }
+
+      <div class="flex flex-col gap-3 mt-5">
+        @if (hayFincaAbierta) {
+          <button type="button" class="btn-primary w-full" (click)="sincronizarPrimero()" [disabled]="sincronizando || cerrando">
+            <app-icono nombre="sincronizar" clase="w-5 h-5" [class.animate-spin]="sincronizando" />
+            {{ sincronizando ? 'Sincronizando...' : 'Sincronizar primero' }}
+          </button>
+        }
+        <button type="button" class="btn-secundario w-full" (click)="volverALaApp()" [disabled]="sincronizando || cerrando">
+          <app-icono nombre="flecha" clase="w-5 h-5" /> No cerrar, volver a la app
+        </button>
+        <button type="button" class="btn-danger w-full" (click)="abrirConfirmar()" [disabled]="sincronizando || cerrando">
+          <app-icono nombre="papelera" clase="w-5 h-5" /> Cerrar de todas formas
+        </button>
+      </div>
+    </div>
+  }
+</div>
+
+<app-confirmar-accion
+  [abierto]="confirmarAbierto"
+  titulo="¿Cerrar y borrar lo que no subió?"
+  [descripcion]="'Se borran del celular ' + pendientes + (pendientes === 1 ? ' registro que no ha subido' : ' registros que no han subido') + '. No se pueden recuperar.'"
+  aviso="Si alguien más los necesita, sincroniza primero con señal."
+  palabra="BORRAR"
+  textoBoton="Cerrar y borrar"
+  [peligroso]="true"
+  [procesando]="cerrando"
+  (confirmar)="CerrarSesion()"
+  (cancelar)="cerrarConfirmar()" />

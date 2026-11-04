@@ -1,0 +1,160 @@
+<!-- ESTADO GRANDE -->
+<div class="card p-5 mb-4">
+  <div class="flex items-center gap-4">
+    <span class="grid place-items-center w-16 h-16 rounded-3xl shrink-0"
+      [class.bg-exito-fondo]="estado.enLinea && !necesitaClave" [class.text-exito]="estado.enLinea && !necesitaClave"
+      [class.bg-aviso-fondo]="!estado.enLinea || necesitaClave" [class.text-aviso]="!estado.enLinea || necesitaClave">
+      @if (estado.sincronizando) {
+        <app-icono nombre="sincronizar" clase="w-9 h-9 animate-spin" />
+      } @else if (necesitaClave) {
+        <app-icono nombre="candado" clase="w-9 h-9" />
+      } @else if (estado.enLinea) {
+        <app-icono nombre="nube" clase="w-9 h-9" />
+      } @else {
+        <app-icono nombre="sin-senal" clase="w-9 h-9" />
+      }
+    </span>
+    <div class="min-w-0">
+      <p class="text-xl font-bold m-0">
+        @if (estado.sincronizando) { Sincronizando... }
+        @else if (necesitaClave) { Falta tu clave }
+        @else if (estado.enLinea) { Hay señal }
+        @else { Sin señal }
+      </p>
+      <p class="text-suave m-0">Última vez: {{ ultimaVez }}</p>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-2 gap-3 mt-4">
+    <div class="rounded-2xl px-4 py-3" [class.bg-aviso-fondo]="estado.pendientes > 0" [class.bg-tarjeta-alta]="estado.pendientes === 0">
+      <p class="text-3xl font-bold m-0" [class.text-aviso]="estado.pendientes > 0">{{ estado.pendientes }}</p>
+      <p class="text-sm font-semibold m-0">por subir</p>
+    </div>
+    <div class="rounded-2xl px-4 py-3" [class.bg-peligro-fondo]="estado.rechazados > 0" [class.bg-tarjeta-alta]="estado.rechazados === 0">
+      <p class="text-3xl font-bold m-0" [class.text-peligro]="estado.rechazados > 0">{{ estado.rechazados }}</p>
+      <p class="text-sm font-semibold m-0">con problema</p>
+    </div>
+  </div>
+
+  @if (estado.error && !estado.sincronizando) {
+    <p class="aviso-error mt-4 mb-0">{{ estado.error }}</p>
+  }
+
+  @if (necesitaClave) {
+    <p class="ayuda-finca mt-4 mb-0">Tu sesión venció. Lo registrado sigue en el celular. Toca <b>Escribir mi clave</b> en el aviso de arriba y se sube solo.</p>
+  } @else if (!estado.enLinea) {
+    <p class="ayuda mt-4 mb-0">Sin señal no se puede sincronizar, pero puedes seguir registrando. Cuando vuelva la señal se sube solo.</p>
+  }
+
+  <button type="button" class="btn-primary w-full mt-4 text-lg min-h-[58px]" (click)="sincronizarAhora()" [disabled]="!puedeSincronizar">
+    <app-icono nombre="sincronizar" clase="w-6 h-6" [class.animate-spin]="estado.sincronizando" />
+    {{ estado.sincronizando ? 'Sincronizando...' : 'Sincronizar ahora' }}
+  </button>
+</div>
+
+<!-- COMO FUNCIONA -->
+<div class="ayuda-finca mb-4">
+  <p class="font-bold m-0 mb-1">¿Cómo funciona?</p>
+  <p class="m-0">Todo lo que registras se guarda primero en el celular. Con señal, la app <b>primero sube</b> lo tuyo y <b>después baja</b> lo que registraron los demás. Lo hace sola al abrir, al volver la señal y cada 5 minutos. Reintentar <b>nunca duplica</b> nada.</p>
+</div>
+
+<!-- CON PROBLEMA (RECHAZADOS) -->
+@if (rechazados.length > 0) {
+  <h2 class="text-lg font-semibold mb-1">Con problema</h2>
+  <p class="ayuda mt-0 mb-3">El servidor no los aceptó. Lee el motivo: corrige y toca <b>Reintentar</b>, o <b>Descartar</b> si estaba mal.</p>
+  <div class="grid gap-3 mb-5">
+    @for (r of rechazados; track r.orden) {
+      <div class="card p-4 border-2 border-peligro/40 bg-peligro-fondo">
+        <div class="flex items-start gap-3">
+          <span class="grid place-items-center w-11 h-11 rounded-full bg-tarjeta text-peligro shrink-0"><app-icono [nombre]="r.icono" clase="w-6 h-6" /></span>
+          <div class="min-w-0 flex-1">
+            <p class="font-bold m-0">{{ r.descripcion }}</p>
+            <p class="text-sm text-suave m-0">Registrado el {{ r.fecha }}</p>
+            <p class="text-peligro font-semibold mt-1.5 mb-0 flex gap-1.5"><app-icono nombre="alerta" clase="w-5 h-5 shrink-0" /> {{ r.mensaje || 'El servidor no lo aceptó' }}</p>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3 mt-3">
+          <button type="button" class="btn-secundario" (click)="reintentar(r)" [disabled]="reintentando !== null || estado.sincronizando">
+            <app-icono nombre="sincronizar" clase="w-5 h-5" /> {{ reintentando === r.orden ? 'Enviando...' : 'Reintentar' }}
+          </button>
+          <button type="button" class="btn-danger" (click)="pedirDescartar(r)" [disabled]="estado.sincronizando">
+            <app-icono nombre="papelera" clase="w-5 h-5" /> Descartar
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+}
+
+<!-- POR SUBIR -->
+<h2 class="text-lg font-semibold mb-3">Por subir</h2>
+@if (cargandoBandeja) {
+  <div class="card p-5 text-suave text-center mb-5">Revisando el celular...</div>
+} @else if (pendientes.length === 0) {
+  <div class="card p-5 flex items-center gap-3 mb-5">
+    <span class="grid place-items-center w-11 h-11 rounded-full bg-exito-fondo text-exito shrink-0"><app-icono nombre="check" clase="w-6 h-6" /></span>
+    <p class="m-0 font-semibold">Nada por subir: todo lo de este celular ya está en el servidor.</p>
+  </div>
+} @else {
+  <div class="card divide-y divide-borde mb-5">
+    @for (r of pendientes; track r.orden) {
+      <div class="flex items-center gap-3 p-4">
+        <span class="grid place-items-center w-11 h-11 rounded-full bg-aviso-fondo text-aviso shrink-0"><app-icono [nombre]="r.icono" clase="w-6 h-6" /></span>
+        <div class="min-w-0 flex-1">
+          <p class="font-semibold m-0">{{ r.descripcion }}</p>
+          <p class="text-sm text-suave m-0">{{ r.fecha }}</p>
+        </div>
+        <span class="badge badge-warning shrink-0"><app-icono nombre="celular" clase="w-3.5 h-3.5" /> por subir</span>
+      </div>
+    }
+  </div>
+}
+
+<!-- ULTIMAS SINCRONIZACIONES DEL SERVIDOR (SOLO CON SEÑAL) -->
+<h2 class="text-lg font-semibold mb-1">Últimas sincronizaciones</h2>
+<p class="ayuda mt-0 mb-3">Lo que han subido las personas de la finca. Esta lista sí necesita señal.</p>
+@if (!estado.enLinea) {
+  <div class="card p-5 flex items-center gap-3 text-suave">
+    <app-icono nombre="sin-senal" clase="w-6 h-6 shrink-0" /> Sin señal: la lista aparece cuando vuelva.
+  </div>
+} @else if (necesitaClave) {
+  <div class="card p-5 flex items-center gap-3 text-suave">
+    <app-icono nombre="candado" clase="w-6 h-6 shrink-0" /> Escribe tu clave para ver la lista.
+  </div>
+} @else if (cargandoServidor && sincronizaciones.length === 0) {
+  <div class="card p-5 text-suave text-center">Trayendo la lista del servidor...</div>
+} @else if (errorServidor) {
+  <div class="aviso-error flex flex-wrap items-center gap-3">
+    <span class="flex-1">{{ errorServidor }}</span>
+    <button type="button" class="btn-secundario min-h-[40px]" (click)="cargarServidor()">Reintentar</button>
+  </div>
+} @else if (sincronizaciones.length === 0) {
+  <div class="card p-5 text-suave text-center">Todavía nadie ha sincronizado en esta finca.</div>
+} @else {
+  <div class="card divide-y divide-borde">
+    @for (s of sincronizaciones; track s.id) {
+      <div class="p-4">
+        <div class="flex flex-wrap items-baseline justify-between gap-x-3">
+          <p class="font-bold m-0">{{ s.persona }}</p>
+          <p class="text-sm text-suave m-0">{{ s.fecha }}</p>
+        </div>
+        <div class="flex flex-wrap gap-2 mt-1.5">
+          <span class="badge badge-success">{{ s.guardados }} guardados</span>
+          @if (s.omitidos > 0) { <span class="badge badge-neutral">{{ s.omitidos }} ya existían</span> }
+          @if (s.rechazados > 0) { <span class="badge badge-danger">{{ s.rechazados }} rechazados</span> }
+        </div>
+      </div>
+    }
+  </div>
+}
+
+<app-confirmar-accion
+  [abierto]="!!porDescartar"
+  titulo="¿Descartar este registro?"
+  [descripcion]="porDescartar ? porDescartar.descripcion : ''"
+  aviso="Se borra de este celular y nunca llega al servidor. Si era un animal o un pesaje nuevo, se pierde y toca registrarlo otra vez."
+  textoBoton="Descartar"
+  [peligroso]="true"
+  [procesando]="descartando"
+  (confirmar)="confirmarDescartar()"
+  (cancelar)="cancelarDescartar()" />

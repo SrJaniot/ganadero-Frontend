@@ -1,0 +1,13 @@
+<div class="max-w-[760px] animate-fade-in">
+  <div class="card p-6 md:p-8 flex flex-col sm:flex-row gap-6 items-center sm:items-start">
+    <span class="grid place-items-center w-20 h-20 rounded-3xl bg-aviso-fondo text-aviso shrink-0"><app-icono nombre="construccion" clase="w-10 h-10" /></span>
+    <div class="min-w-0 text-center sm:text-left">
+      <div class="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+        <h2 class="text-2xl font-semibold">{{ titulo }}</h2>
+        <span class="badge badge-warning">Llega en la fase {{ fase }}</span>
+      </div>
+      <p class="mt-3 mb-0">{{ descripcion }}</p>
+      <p class="mt-5 mb-0"><a routerLink="/app/hoy" class="btn-secundario">Volver a «¿Qué pasó hoy?»</a></p>
+    </div>
+  </div>
+</div>

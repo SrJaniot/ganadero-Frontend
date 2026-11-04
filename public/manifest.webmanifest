@@ -1,0 +1,16 @@
+{
+  "name": "Ganadero",
+  "short_name": "Ganadero",
+  "description": "El hato de la finca en el celular, aunque no haya señal.",
+  "lang": "es",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F6F4EC",
+  "theme_color": "#1F3B1F",
+  "icons": [
+    { "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

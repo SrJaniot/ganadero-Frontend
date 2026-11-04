@@ -1,0 +1,31 @@
+@if (abierto) {
+  <div class="modal-centro" (click)="!procesando && cancelar.emit()">
+    <div class="modal-caja" (click)="$event.stopPropagation()" role="dialog" aria-modal="true" [attr.aria-label]="titulo">
+      <div class="flex items-start gap-3">
+        <span class="w-10 h-10 rounded-2xl grid place-items-center shrink-0" [class.bg-peligro-fondo]="peligroso" [class.text-peligro]="peligroso" [class.bg-info-fondo]="!peligroso" [class.text-info]="!peligroso">
+          <app-icono [nombre]="peligroso ? 'alerta' : 'check'" clase="w-5 h-5" />
+        </span>
+        <div class="min-w-0">
+          <h2 class="text-base font-semibold">{{ titulo }}</h2>
+          <p class="text-sm text-suave mt-1 mb-0">{{ descripcion }}</p>
+        </div>
+      </div>
+
+      @if (aviso) {
+        <p class="text-sm bg-aviso-fondo text-aviso rounded-xl px-3.5 py-2.5 mt-4 mb-0">{{ aviso }}</p>
+      }
+
+      @if (palabra) {
+        <label class="label-field mt-4" for="confirmar_palabra">Para confirmar escribe <span class="font-bold text-primario">{{ palabra }}</span></label>
+        <input id="confirmar_palabra" type="text" class="input-field" [(ngModel)]="escrito" autocomplete="off" spellcheck="false" [disabled]="procesando" (keydown.enter)="habilitado && confirmar.emit()">
+      }
+
+      <div class="flex justify-end gap-2.5 mt-5">
+        <button type="button" class="btn-secondary" (click)="cancelar.emit()" [disabled]="procesando">Cancelar</button>
+        <button type="button" [class]="peligroso ? 'btn-danger' : 'btn-primary'" (click)="confirmar.emit()" [disabled]="!habilitado">
+          @if (procesando) { <span class="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin"></span> Un momento... } @else { {{ textoBoton }} }
+        </button>
+      </div>
+    </div>
+  </div>
+}

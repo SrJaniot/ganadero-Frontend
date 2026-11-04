@@ -1,0 +1,314 @@
+@if (!esDuenio) {
+  <!-- SOLO EL DUEÑO -->
+  <div class="card p-6 md:p-8 flex flex-col items-center gap-3 text-center max-w-[560px] animate-fade-in">
+    <span class="inline-grid place-items-center w-16 h-16 rounded-3xl bg-tarjeta-alta text-primario-texto"><app-icono nombre="candado" clase="w-9 h-9" /></span>
+    <h2 class="text-xl font-semibold">Solo para el dueño</h2>
+    <p class="m-0">Los datos de la finca y las cuentas de las personas los maneja el dueño. Si necesitas un cambio, pídeselo a él.</p>
+    <a routerLink="/app/hoy" class="btn-secundario mt-2">Volver a «¿Qué pasó hoy?»</a>
+  </div>
+
+} @else if (sinSenal) {
+  <!-- SIN SEÑAL -->
+  <div class="card p-6 md:p-8 flex flex-col items-center gap-3 text-center max-w-[560px] animate-fade-in">
+    <span class="inline-grid place-items-center w-16 h-16 rounded-3xl bg-aviso-fondo text-aviso"><app-icono nombre="sin-senal" clase="w-9 h-9" /></span>
+    <h2 class="text-xl font-semibold">No hay señal</h2>
+    <p class="m-0">Para cambiar los datos de la finca o las cuentas de las personas se necesita señal. Lo demás de la app sí funciona sin ella.</p>
+    <button type="button" class="btn-secundario mt-2" (click)="cargarTodo()"><app-icono nombre="sincronizar" clase="w-5 h-5" /> Intentar de nuevo</button>
+  </div>
+
+} @else {
+  <div class="flex flex-col gap-6 animate-fade-in">
+
+    <!-- PERSONAS -->
+    <section class="flex flex-col gap-4">
+      <div class="flex flex-col sm:flex-row gap-3 sm:items-center">
+        <h2 class="text-xl font-semibold flex-1 m-0">Personas de la finca</h2>
+        <button type="button" class="btn-primary" (click)="abrirAgregar()">
+          <app-icono nombre="mas" clase="w-5 h-5" /> Agregar vaquero o veterinario
+        </button>
+      </div>
+
+      <div class="ayuda-finca">
+        <b>Cada persona entra con su celular y su clave.</b> Al agregarla, la app le inventa una clave: díctasela en persona.
+        Si se le olvida, toca «Clave» y dale una nueva. Quitar a alguien no borra lo que registró.
+      </div>
+
+      @if (cargandoPersonas && personas.length === 0) {
+        <div class="card p-8 flex flex-col items-center gap-3 text-center">
+          <div class="w-10 h-10 rounded-full border-4 border-borde border-t-primario animate-spin"></div>
+          <p class="text-suave m-0">Buscando las personas...</p>
+        </div>
+      } @else if (errorCargaPersonas) {
+        <div class="card p-8 flex flex-col items-center gap-3 text-center">
+          <app-icono nombre="alerta" clase="w-9 h-9 text-peligro" />
+          <p class="m-0 font-semibold">No se pudieron traer las personas.</p>
+          <button type="button" class="btn-secundario" (click)="cargarPersonas()">Intentar de nuevo</button>
+        </div>
+      } @else if (personas.length === 0) {
+        <div class="card p-8 text-center">
+          <p class="m-0 text-suave">Todavía no hay nadie más en la finca.</p>
+        </div>
+      } @else {
+        <div class="grid gap-4 md:grid-cols-2">
+          @for (persona of personas; track persona.idFincaPersona) {
+            <article class="card p-5 flex flex-col gap-4" [class.opacity-75]="!persona.activa">
+              <div class="flex items-start gap-3">
+                <span class="avatar w-14 h-14 text-lg bg-durazno">{{ iniciales(persona.nombre) }}</span>
+                <div class="min-w-0 flex-1">
+                  <h3 class="text-lg font-semibold break-words leading-tight">{{ persona.nombre }}</h3>
+                  <div class="flex flex-wrap gap-1.5 mt-1.5">
+                    <span class="badge" [class.badge-primario]="persona.rol === 'DUENIO'" [class.badge-neutral]="persona.rol !== 'DUENIO'">{{ persona.nombreRol }}</span>
+                    <span class="badge" [class.badge-success]="persona.activa" [class.badge-danger]="!persona.activa">{{ persona.activa ? 'Trabaja aquí' : 'Fuera de la finca' }}</span>
+                    @if (esYo(persona)) {
+                      <span class="badge badge-info">Tú</span>
+                    }
+                  </div>
+                </div>
+              </div>
+
+              @if (!esYo(persona)) {
+                <div class="grid grid-cols-3 gap-2 mt-auto">
+                  <button type="button" class="btn-secundario !min-h-[48px] !px-2 flex-col !gap-0.5 text-sm" (click)="abrirClave(persona)" [disabled]="!persona.activa" [attr.aria-label]="'Nueva clave para ' + persona.nombre">
+                    <app-icono nombre="llave" clase="w-5 h-5" /> Clave
+                  </button>
+                  <button type="button" class="btn-secundario !min-h-[48px] !px-2 flex-col !gap-0.5 text-sm" (click)="abrirRol(persona)" [attr.aria-label]="'Cambiar el rol de ' + persona.nombre">
+                    <app-icono nombre="usuario" clase="w-5 h-5" /> Rol
+                  </button>
+                  <button type="button" class="btn-secundario !min-h-[48px] !px-2 flex-col !gap-0.5 text-sm" (click)="abrirEstado(persona)" [attr.aria-label]="(persona.activa ? 'Quitar a ' : 'Devolver a ') + persona.nombre">
+                    <app-icono [nombre]="persona.activa ? 'salida' : 'check'" clase="w-5 h-5" /> {{ persona.activa ? 'Quitar' : 'Devolver' }}
+                  </button>
+                </div>
+              }
+            </article>
+          }
+        </div>
+      }
+    </section>
+
+    <!-- DATOS DE LA FINCA -->
+    <section class="flex flex-col gap-4">
+      <h2 class="text-xl font-semibold m-0">Datos de la finca</h2>
+      @if (cargandoFinca) {
+        <div class="card p-8 flex flex-col items-center gap-3 text-center">
+          <div class="w-10 h-10 rounded-full border-4 border-borde border-t-primario animate-spin"></div>
+          <p class="text-suave m-0">Trayendo los datos...</p>
+        </div>
+      } @else if (errorCargaFinca) {
+        <div class="card p-8 flex flex-col items-center gap-3 text-center">
+          <app-icono nombre="alerta" clase="w-9 h-9 text-peligro" />
+          <p class="m-0 font-semibold">No se pudieron traer los datos de la finca.</p>
+          <button type="button" class="btn-secundario" (click)="cargarFinca()">Intentar de nuevo</button>
+        </div>
+      } @else {
+        <form class="card p-6 md:p-7" [formGroup]="fincaForm" (ngSubmit)="guardarFinca()" novalidate>
+          <div class="grid gap-4 md:grid-cols-2">
+            <div class="md:col-span-2">
+              <label class="label-field" for="nom_finca">Nombre de la finca</label>
+              <input id="nom_finca" type="text" class="input-field" formControlName="nom_finca" autocomplete="off" [class.input-error]="campoFincaInvalido('nom_finca')">
+              @if (campoFincaInvalido('nom_finca')) {
+                <p class="texto-error">Escribe el nombre de la finca</p>
+              }
+            </div>
+            <div>
+              <label class="label-field" for="municipio_finca">Municipio</label>
+              <input id="municipio_finca" type="text" class="input-field" formControlName="municipio_finca" autocomplete="off" [class.input-error]="campoFincaInvalido('municipio_finca')">
+              @if (campoFincaInvalido('municipio_finca')) {
+                <p class="texto-error">Escribe el municipio</p>
+              }
+            </div>
+            <div>
+              <label class="label-field" for="vereda_finca">Vereda <span class="font-normal text-suave">(si quieres)</span></label>
+              <input id="vereda_finca" type="text" class="input-field" formControlName="vereda_finca" autocomplete="off">
+            </div>
+            <div>
+              <label class="label-field" for="registro_ica_finca">Registro ICA <span class="font-normal text-suave">(si quieres)</span></label>
+              <input id="registro_ica_finca" type="text" class="input-field" formControlName="registro_ica_finca" autocomplete="off">
+              <p class="ayuda mt-1 mb-0">El número del predio que da el ICA para las vacunas y las guías.</p>
+            </div>
+            <div>
+              <label class="label-field" for="hierro_finca">Hierro <span class="font-normal text-suave">(si quieres)</span></label>
+              <input id="hierro_finca" type="text" class="input-field" formControlName="hierro_finca" autocomplete="off">
+              <p class="ayuda mt-1 mb-0">Las letras o la marca con que se marca el ganado.</p>
+            </div>
+          </div>
+          <div class="flex justify-end mt-6">
+            <button type="submit" class="btn-primary w-full sm:w-auto" [disabled]="guardandoFinca">
+              <app-icono nombre="check" clase="w-5 h-5" /> {{ guardandoFinca ? 'Guardando...' : 'Guardar los datos' }}
+            </button>
+          </div>
+        </form>
+      }
+    </section>
+  </div>
+}
+
+<!-- MODAL: AGREGAR VAQUERO O VETERINARIO -->
+@if (agregarAbierto) {
+  <div class="modal-centro" (click)="cerrarAgregar()">
+    @if (resultadoAgregar) {
+      <!-- RESULTADO -->
+      <div class="modal-caja" (click)="$event.stopPropagation()" role="dialog" aria-modal="true" aria-label="Persona agregada">
+        <div class="flex items-center gap-3 mb-4">
+          <span class="inline-grid place-items-center w-12 h-12 rounded-2xl bg-exito-fondo text-exito shrink-0"><app-icono nombre="check" clase="w-7 h-7" /></span>
+          <h2 class="text-xl font-semibold flex-1">{{ resultadoAgregar.nombre }} ya está en la finca</h2>
+        </div>
+        @if (resultadoAgregar.cuentaNueva) {
+          <p class="mt-0">Díctale estos datos para que entre a la app:</p>
+          <div class="rounded-3xl border-2 border-primario bg-tarjeta-alta p-5 text-center">
+            <p class="ayuda m-0">Celular</p>
+            <p class="text-xl font-bold m-0">{{ resultadoAgregar.celular }}</p>
+            <p class="ayuda mt-3 mb-0">Clave</p>
+            <p class="text-3xl font-bold tracking-wider m-0 font-mono select-all break-all">{{ resultadoAgregar.clave }}</p>
+          </div>
+          <p class="text-sm bg-aviso-fondo text-aviso rounded-xl px-3.5 py-2.5 mt-4 mb-0 font-semibold">Esta clave no se vuelve a ver. Anótala o díctala ya. Si se pierde, dale una nueva con «Clave».</p>
+        } @else {
+          <div class="ayuda-finca">
+            <b>Esta persona ya tenía cuenta</b> (trabaja en otra finca o ya usaba la app). Entra con su celular y <b>su clave de siempre</b>: la clave de aquí no se usó.
+          </div>
+        }
+        <div class="flex justify-end mt-5">
+          <button type="button" class="btn-primary w-full sm:w-auto" (click)="cerrarAgregar()">Listo</button>
+        </div>
+      </div>
+    } @else {
+      <form class="modal-caja" (click)="$event.stopPropagation()" [formGroup]="personaForm" (ngSubmit)="guardarPersona()" novalidate role="dialog" aria-modal="true" aria-label="Agregar persona">
+        <div class="flex items-center gap-3 mb-5">
+          <h2 class="text-xl font-semibold flex-1">Agregar a la finca</h2>
+          <button type="button" class="btn-icono" (click)="cerrarAgregar()" aria-label="Cerrar"><app-icono nombre="cerrar" clase="w-5 h-5" /></button>
+        </div>
+
+        <div class="mb-4">
+          <label class="label-field" for="nom_persona">Nombre</label>
+          <input id="nom_persona" type="text" class="input-field" formControlName="nom_persona" autocomplete="off" placeholder="Juan Pérez" [class.input-error]="campoPersonaInvalido('nom_persona')">
+          @if (campoPersonaInvalido('nom_persona')) {
+            <p class="texto-error">Escribe el nombre</p>
+          }
+        </div>
+
+        <div class="mb-4">
+          <label class="label-field" for="celular_persona">Celular</label>
+          <input id="celular_persona" type="tel" inputmode="numeric" class="input-field" formControlName="celular" autocomplete="off" placeholder="300 123 4567" [class.input-error]="campoPersonaInvalido('celular')">
+          @if (campoPersonaInvalido('celular')) {
+            <p class="texto-error">Escribe el celular (10 dígitos)</p>
+          } @else {
+            <p class="ayuda mt-1 mb-0">Con este número entra a la app.</p>
+          }
+        </div>
+
+        <div class="mb-4">
+          <span class="label-field">¿Qué hace en la finca?</span>
+          <div class="flex flex-col gap-2">
+            @for (rol of roles; track rol.valor) {
+              <label class="flex items-start gap-3 rounded-2xl border-2 px-4 py-3 cursor-pointer transition-colors"
+                [class.border-primario]="personaForm.controls.rol_finca.value === rol.valor" [class.bg-tarjeta-alta]="personaForm.controls.rol_finca.value === rol.valor"
+                [class.border-borde]="personaForm.controls.rol_finca.value !== rol.valor">
+                <input type="radio" class="mt-1 w-5 h-5 accent-primario" formControlName="rol_finca" [value]="rol.valor">
+                <span><b>{{ rol.texto }}</b><br><span class="ayuda">{{ rol.ayuda }}</span></span>
+              </label>
+            }
+          </div>
+        </div>
+
+        <div class="mb-2">
+          <span class="label-field">Clave para entrar</span>
+          <div class="flex items-center gap-2">
+            <p class="flex-1 m-0 rounded-2xl border-2 border-borde bg-tarjeta-alta px-4 py-3 text-2xl font-bold tracking-wider font-mono break-all select-all">{{ personaForm.controls.clave.value }}</p>
+            <button type="button" class="btn-secundario !px-4" (click)="otraClaveAgregar()" aria-label="Inventar otra clave" title="Otra clave">
+              <app-icono nombre="dado" clase="w-5 h-5" /> Otra
+            </button>
+          </div>
+          <p class="ayuda mt-1 mb-0">La app la inventa. Si la persona ya tenía cuenta, sigue con su clave de siempre.</p>
+        </div>
+
+        <div class="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-5">
+          <button type="button" class="btn-secundario" (click)="cerrarAgregar()" [disabled]="guardandoPersona">Cancelar</button>
+          <button type="submit" class="btn-primary" [disabled]="guardandoPersona">
+            <app-icono nombre="mas" clase="w-5 h-5" /> {{ guardandoPersona ? 'Agregando...' : 'Agregar' }}
+          </button>
+        </div>
+      </form>
+    }
+  </div>
+}
+
+<!-- MODAL: NUEVA CLAVE -->
+@if (personaClave) {
+  <div class="modal-centro" (click)="cerrarClave()">
+    <div class="modal-caja" (click)="$event.stopPropagation()" role="dialog" aria-modal="true" aria-label="Nueva clave">
+      <div class="flex items-center gap-3 mb-4">
+        <span class="inline-grid place-items-center w-12 h-12 rounded-2xl bg-tarjeta-alta text-primario-texto shrink-0"><app-icono nombre="llave" clase="w-7 h-7" /></span>
+        <h2 class="text-xl font-semibold flex-1">Nueva clave para {{ personaClave.nombre }}</h2>
+        @if (!claveRestablecida) {
+          <button type="button" class="btn-icono" (click)="cerrarClave()" aria-label="Cerrar"><app-icono nombre="cerrar" clase="w-5 h-5" /></button>
+        }
+      </div>
+
+      @if (claveRestablecida) {
+        <p class="mt-0">Listo. Díctale su clave nueva:</p>
+      } @else {
+        <p class="mt-0">La clave vieja deja de servir. Con esta entra desde ahora:</p>
+      }
+      <div class="rounded-3xl border-2 border-primario bg-tarjeta-alta p-5 text-center">
+        <p class="text-3xl font-bold tracking-wider m-0 font-mono select-all break-all">{{ claveNueva }}</p>
+      </div>
+
+      @if (claveRestablecida) {
+        <p class="text-sm bg-aviso-fondo text-aviso rounded-xl px-3.5 py-2.5 mt-4 mb-0 font-semibold">Esta clave no se vuelve a ver. Anótala o díctala ya.</p>
+        <div class="flex justify-end mt-5">
+          <button type="button" class="btn-primary w-full sm:w-auto" (click)="cerrarClave()">Listo</button>
+        </div>
+      } @else {
+        <div class="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-5">
+          <button type="button" class="btn-secundario" (click)="otraClave()" [disabled]="guardandoClave"><app-icono nombre="dado" clase="w-5 h-5" /> Otra clave</button>
+          <button type="button" class="btn-primary" (click)="guardarClave()" [disabled]="guardandoClave">
+            <app-icono nombre="check" clase="w-5 h-5" /> {{ guardandoClave ? 'Guardando...' : 'Usar esta clave' }}
+          </button>
+        </div>
+      }
+    </div>
+  </div>
+}
+
+<!-- MODAL: CAMBIAR ROL -->
+@if (personaRol) {
+  <div class="modal-centro" (click)="cerrarRol()">
+    <div class="modal-caja" (click)="$event.stopPropagation()" role="dialog" aria-modal="true" aria-label="Cambiar el rol">
+      <div class="flex items-center gap-3 mb-4">
+        <h2 class="text-xl font-semibold flex-1">¿Qué hace {{ personaRol.nombre }}?</h2>
+        <button type="button" class="btn-icono" (click)="cerrarRol()" aria-label="Cerrar"><app-icono nombre="cerrar" clase="w-5 h-5" /></button>
+      </div>
+      <div class="flex flex-col gap-2">
+        @for (rol of roles; track rol.valor) {
+          <button type="button" class="flex items-start gap-3 rounded-2xl border-2 px-4 py-3 text-left cursor-pointer bg-tarjeta transition-colors min-h-[52px]"
+            [class.border-primario]="rolElegido === rol.valor" [class.bg-tarjeta-alta]="rolElegido === rol.valor" [class.border-borde]="rolElegido !== rol.valor"
+            (click)="rolElegido = rol.valor" [attr.aria-pressed]="rolElegido === rol.valor">
+            <span class="mt-0.5 w-5 h-5 rounded-full border-2 grid place-items-center shrink-0" [class.border-primario]="rolElegido === rol.valor" [class.border-borde]="rolElegido !== rol.valor">
+              @if (rolElegido === rol.valor) { <span class="w-2.5 h-2.5 rounded-full bg-primario"></span> }
+            </span>
+            <span><b>{{ rol.texto }}</b><br><span class="ayuda">{{ rol.ayuda }}</span></span>
+          </button>
+        }
+      </div>
+      @if (rolElegido === 'DUENIO' && personaRol.rol !== 'DUENIO') {
+        <p class="text-sm bg-aviso-fondo text-aviso rounded-xl px-3.5 py-2.5 mt-4 mb-0">Como dueño podrá cambiar los datos de la finca y agregar o quitar personas, también a ti.</p>
+      }
+      <div class="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-5">
+        <button type="button" class="btn-secundario" (click)="cerrarRol()" [disabled]="guardandoRol">Cancelar</button>
+        <button type="button" class="btn-primary" (click)="guardarRol()" [disabled]="guardandoRol">
+          <app-icono nombre="check" clase="w-5 h-5" /> {{ guardandoRol ? 'Guardando...' : 'Guardar' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- CONFIRMAR: QUITAR O DEVOLVER -->
+<app-confirmar-accion
+  [abierto]="!!personaEstado"
+  [titulo]="tituloEstado"
+  [descripcion]="descripcionEstado"
+  [textoBoton]="personaEstado?.activa ? 'Quitar de la finca' : 'Devolver a la finca'"
+  [peligroso]="!!personaEstado?.activa"
+  [procesando]="guardandoEstado"
+  (confirmar)="guardarEstado()"
+  (cancelar)="cerrarEstado()" />

@@ -1,0 +1,126 @@
+<div class="flex flex-col gap-6 max-w-[760px] animate-fade-in">
+
+  <!-- FINCA Y SINCRONIZACION -->
+  <section class="card p-5 flex flex-col gap-4">
+    <div class="flex items-start gap-3">
+      <span class="inline-grid place-items-center w-12 h-12 rounded-2xl bg-tarjeta-alta text-primario-texto shrink-0"><app-icono nombre="finca" clase="w-7 h-7" /></span>
+      <div class="min-w-0 flex-1">
+        <p class="ayuda m-0">Estás trabajando en</p>
+        <h2 class="text-lg font-semibold break-words leading-tight m-0">{{ nombreFinca }}</h2>
+        @if (rolFinca) {
+          <span class="badge badge-neutral mt-1">{{ rolFinca }}</span>
+        }
+      </div>
+    </div>
+    <a routerLink="/app/sincronizacion" class="flex items-center gap-3 rounded-2xl border-2 border-borde px-4 py-3 no-underline text-texto hover:border-primario min-h-[52px]">
+      <app-icono nombre="nube" clase="w-6 h-6 text-suave" />
+      <span class="flex-1 font-semibold">Sincronización</span>
+      <span class="badge" [ngClass]="claseEstado">{{ textoEstado }}</span>
+    </a>
+    <button type="button" class="btn-secundario w-full" (click)="cambiarDeFinca()">
+      <app-icono nombre="finca" clase="w-5 h-5" /> Cambiar de finca
+    </button>
+  </section>
+
+  <!-- MIS DATOS -->
+  <section class="flex flex-col gap-3">
+    <h2 class="text-xl font-semibold m-0">Mis datos</h2>
+    <form class="card p-6 md:p-7" [formGroup]="perfilForm" (ngSubmit)="guardarPerfil()" novalidate>
+      <div class="grid gap-4 md:grid-cols-2">
+        <div class="md:col-span-2">
+          <label class="label-field" for="nombre">Nombre</label>
+          <input id="nombre" type="text" class="input-field" formControlName="nombre" autocomplete="name" [class.input-error]="campoInvalido('nombre')">
+          @if (campoInvalido('nombre')) {
+            <p class="texto-error">Escribe tu nombre</p>
+          }
+        </div>
+        <div>
+          <label class="label-field" for="celular">Celular</label>
+          <input id="celular" type="tel" class="input-field opacity-75" [value]="celular" readonly aria-readonly="true">
+          <p class="ayuda mt-1 mb-0">Con este número entras. No se cambia aquí.</p>
+        </div>
+        <div>
+          <label class="label-field" for="correo">Correo <span class="font-normal text-suave">(si quieres)</span></label>
+          <input id="correo" type="email" class="input-field" formControlName="correo" autocomplete="email" placeholder="nombre@correo.com" [class.input-error]="campoInvalido('correo')">
+          @if (campoInvalido('correo')) {
+            <p class="texto-error">Ese correo no está bien escrito</p>
+          } @else {
+            <p class="ayuda mt-1 mb-0">No hace falta para entrar.</p>
+          }
+        </div>
+      </div>
+      <div class="flex justify-end mt-6">
+        <button type="submit" class="btn-primary w-full sm:w-auto" [disabled]="guardandoPerfil">
+          <app-icono nombre="check" clase="w-5 h-5" /> {{ guardandoPerfil ? 'Guardando...' : 'Guardar mis datos' }}
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <!-- CAMBIAR CLAVE -->
+  <section class="flex flex-col gap-3">
+    <h2 class="text-xl font-semibold m-0">Cambiar mi clave</h2>
+    <form class="card p-6 md:p-7" [formGroup]="claveForm" (ngSubmit)="guardarClave()" novalidate>
+      <div class="mb-4">
+        <label class="label-field" for="clave_actual">Clave de ahora</label>
+        <div class="relative">
+          <input id="clave_actual" [type]="mostrarClaves ? 'text' : 'password'" class="input-field pr-12" formControlName="clave_actual" autocomplete="current-password" [class.input-error]="campoClaveInvalido('clave_actual')">
+          <button type="button" class="btn-icono absolute right-1 top-1/2 -translate-y-1/2"
+            (click)="mostrarClaves = !mostrarClaves" [attr.aria-label]="mostrarClaves ? 'Ocultar las claves' : 'Mostrar las claves'">
+            <app-icono [nombre]="mostrarClaves ? 'ojo-cerrado' : 'ojo'" clase="w-5 h-5" />
+          </button>
+        </div>
+        @if (campoClaveInvalido('clave_actual')) {
+          <p class="texto-error">Escribe la clave con la que entras hoy</p>
+        }
+      </div>
+      <div class="grid gap-4 md:grid-cols-2">
+        <div>
+          <label class="label-field" for="clave_nueva">Clave nueva</label>
+          <input id="clave_nueva" [type]="mostrarClaves ? 'text' : 'password'" class="input-field" formControlName="clave_nueva" autocomplete="new-password" [class.input-error]="campoClaveInvalido('clave_nueva')">
+          @if (campoClaveInvalido('clave_nueva')) {
+            <p class="texto-error">Al menos {{ longitudMinimaClave }} letras o números</p>
+          } @else {
+            <p class="ayuda mt-1 mb-0">Al menos {{ longitudMinimaClave }} letras o números.</p>
+          }
+        </div>
+        <div>
+          <label class="label-field" for="confirmar_clave">Clave nueva otra vez</label>
+          <input id="confirmar_clave" [type]="mostrarClaves ? 'text' : 'password'" class="input-field" formControlName="confirmar_clave" autocomplete="new-password" [class.input-error]="campoClaveInvalido('confirmar_clave') || clavesDiferentes">
+          @if (campoClaveInvalido('confirmar_clave')) {
+            <p class="texto-error">Escribe la clave nueva otra vez</p>
+          } @else if (clavesDiferentes) {
+            <p class="texto-error">Las dos claves no son iguales</p>
+          }
+        </div>
+      </div>
+      <div class="flex justify-end mt-6">
+        <button type="submit" class="btn-primary w-full sm:w-auto" [disabled]="guardandoClave">
+          <app-icono nombre="candado" clase="w-5 h-5" /> {{ guardandoClave ? 'Cambiando...' : 'Cambiar la clave' }}
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <!-- LA APP -->
+  <section class="card p-5 flex flex-col gap-3">
+    <!-- INSTALAR COMO APP (PWA): SOLO CUANDO EL NAVEGADOR LO OFRECE (ANDROID/CHROME CON https) O EN EL IPHONE CON LOS PASOS -->
+    @if (instalarAppService.puedeInstalar) {
+      <p class="m-0">Instálala para abrirla como cualquier app, con su ícono, también sin señal.</p>
+      <button type="button" id="btn_instalar_app" class="btn-secundario w-full" (click)="instalarApp()">
+        <app-icono nombre="descargar" clase="w-5 h-5" /> Instalar la app
+      </button>
+    } @else if (instalarAppService.esIphone) {
+      <button type="button" id="btn_instalar_app" class="btn-secundario w-full" (click)="verPasosIphone = !verPasosIphone" [attr.aria-expanded]="verPasosIphone">
+        <app-icono nombre="descargar" clase="w-5 h-5" /> ¿Cómo la instalo?
+      </button>
+      @if (verPasosIphone) {
+        <p class="ayuda m-0 px-1">En Safari toca <b>Compartir</b> (el cuadrito con la flecha hacia arriba) y luego <b>«Agregar a inicio»</b>.</p>
+      }
+    }
+    <button type="button" class="btn-danger w-full" (click)="cerrarSesion()">
+      <app-icono nombre="salir" clase="w-5 h-5" /> Cerrar sesión
+    </button>
+    <p class="ayuda m-0">Al cerrar la sesión se borra lo guardado en este celular. Si hay registros sin subir, la app te avisa antes.</p>
+  </section>
+</div>

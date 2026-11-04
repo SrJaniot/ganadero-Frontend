@@ -1,0 +1,70 @@
+<!-- RESUMEN CORTO: CUANTOS ANIMALES HAY Y QUE FALTA POR SUBIR -->
+<div class="card p-4 mb-4 flex flex-wrap items-center gap-x-5 gap-y-3">
+  <a routerLink="/app/hato" class="flex items-center gap-3 no-underline text-texto min-w-0">
+    <span class="grid place-items-center w-12 h-12 rounded-2xl bg-tarjeta-alta text-primario-texto shrink-0"><app-icono nombre="vaca" clase="w-7 h-7" /></span>
+    <span class="leading-tight">
+      @if (cargando) {
+        <span class="text-suave">Contando el hato...</span>
+      } @else {
+        <span class="block text-2xl font-bold">{{ totalActivos }}</span>
+        <span class="text-suave text-sm">{{ totalActivos === 1 ? 'animal en la finca' : 'animales en la finca' }}</span>
+      }
+    </span>
+  </a>
+
+  <a routerLink="/app/sincronizacion" class="flex items-center gap-3 no-underline text-texto ml-auto">
+    @if (estado.rechazados > 0) {
+      <span class="badge badge-danger text-sm py-1.5"><app-icono nombre="alerta" clase="w-4 h-4" /> {{ estado.rechazados }} con problema</span>
+    }
+    @if (estado.pendientes > 0) {
+      <span class="badge badge-warning text-sm py-1.5"><app-icono nombre="celular" clase="w-4 h-4" /> {{ estado.pendientes }} por subir</span>
+    } @else if (estado.rechazados === 0) {
+      <span class="badge badge-success text-sm py-1.5"><app-icono nombre="nube" clase="w-4 h-4" /> Todo guardado</span>
+    }
+  </a>
+</div>
+
+<!-- HATO VACIO: INVITAR A REGISTRAR EL PRIMER ANIMAL -->
+@if (hatoVacio) {
+  <div class="ayuda-finca mb-4 flex items-start gap-3">
+    <app-icono nombre="vaca" clase="w-7 h-7 shrink-0" />
+    <div>
+      <p class="font-bold text-base m-0">Todavía no hay animales en este celular.</p>
+      @if (puedeCrearAnimal) {
+        <p class="m-0 mt-1">Empieza con el primero: toca <b>Animal nuevo</b>. No necesitas señal.</p>
+      } @else {
+        <p class="m-0 mt-1">Cuando el dueño registre los animales y sincronices, aparecen aquí.</p>
+      }
+    </div>
+  </div>
+}
+
+<p class="text-suave mb-3">Toca lo que hiciste. Se guarda en el celular aunque no haya señal.</p>
+
+<!-- LOS BOTONES GRANDES DEL PLAN (SECCION 5) -->
+<div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+  @if (puedeCrearAnimal) {
+    <a routerLink="/app/hato/nuevo" class="btn-grande relative border-primario">
+      <span class="relative">
+        <app-icono nombre="vaca" clase="w-10 h-10 text-primario-texto" />
+        <span class="absolute -right-2 -bottom-1 grid place-items-center w-6 h-6 rounded-full bg-primario text-sobre-primario"><app-icono nombre="mas" clase="w-4 h-4" /></span>
+      </span>
+      <span class="text-center">Animal nuevo</span>
+    </a>
+  }
+  @for (boton of botones; track boton.ruta) {
+    @if (puedeRegistrarEventos || !boton.listo) {
+      <a [routerLink]="boton.ruta" class="btn-grande relative" [class.opacity-75]="!boton.listo">
+        @if (!boton.listo) {
+          <span class="badge badge-neutral absolute top-2.5 right-2.5">Pronto</span>
+        }
+        <app-icono [nombre]="boton.icono" clase="w-10 h-10 text-primario-texto" />
+        <span class="text-center leading-tight">{{ boton.texto }}</span>
+      </a>
+    }
+  }
+</div>
+
+@if (!puedeRegistrarEventos && !puedeCrearAnimal) {
+  <p class="ayuda mt-4">Tu rol en esta finca solo deja ver. Para registrar, pídele permiso al dueño.</p>
+}

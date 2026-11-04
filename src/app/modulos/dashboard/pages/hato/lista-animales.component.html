@@ -1,0 +1,61 @@
+<!-- BUSCADOR GRANDE + ANIMAL NUEVO -->
+<div class="flex flex-col sm:flex-row gap-3 mb-4">
+  <label class="relative flex-1">
+    <span class="sr-only">Buscar por chapeta o nombre</span>
+    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-suave pointer-events-none"><app-icono nombre="buscar" clase="w-6 h-6" /></span>
+    <input type="search" class="input-field pl-13 text-xl min-h-[58px]" placeholder="Chapeta o nombre" [(ngModel)]="busqueda"
+      autocomplete="off" spellcheck="false" enterkeyhint="search">
+  </label>
+  @if (puedeCrearAnimal) {
+    <a routerLink="/app/hato/nuevo" class="btn-primary min-h-[58px] text-lg"><app-icono nombre="mas" clase="w-6 h-6" /> Animal nuevo</a>
+  }
+</div>
+
+@if (cargando) {
+  <div class="card p-6 text-suave text-center">Buscando el hato en el celular...</div>
+} @else if (errorCarga) {
+  <div class="aviso-error">No se pudo leer el hato del celular. Cierra la app y vuelve a abrirla.</div>
+} @else if (animales.length === 0) {
+  <div class="card p-6 text-center">
+    <app-icono nombre="vaca" clase="w-12 h-12 mx-auto text-suave" />
+    <p class="text-lg font-bold mt-3 mb-1">Todavía no hay animales</p>
+    <p class="text-suave m-0">
+      @if (puedeCrearAnimal) { Toca <b>Animal nuevo</b> para registrar el primero. } @else { Cuando el dueño registre los animales y sincronices, aparecen aquí. }
+    </p>
+  </div>
+} @else {
+  <p class="ayuda mb-2">
+    {{ filtrados.length }} de {{ animales.length }} {{ animales.length === 1 ? 'animal' : 'animales' }} en la finca. Toca uno para ver su ficha.
+  </p>
+
+  @if (filtrados.length === 0) {
+    <div class="card p-6 text-center">
+      <p class="font-bold m-0">Ningún animal con «{{ busqueda }}»</p>
+      <button type="button" class="btn-secundario mt-3" (click)="limpiar()">Ver todos</button>
+    </div>
+  }
+
+  <div class="grid gap-3 sm:grid-cols-2">
+    @for (animal of filtrados; track animal.uuid) {
+      <a [routerLink]="['/app/hato', animal.uuid]" class="card p-4 flex items-center gap-4 no-underline text-texto hover:border-primario active:scale-[.99] transition-all">
+        <span class="grid place-items-center min-w-[64px] h-16 px-2 rounded-2xl bg-tarjeta-alta font-bold text-2xl text-primario-texto shrink-0">
+          @if (animal.chapeta) { {{ animal.chapeta }} } @else { <app-icono nombre="vaca" clase="w-8 h-8" /> }
+        </span>
+        <span class="min-w-0 flex-1 leading-snug">
+          <span class="flex flex-wrap items-center gap-2">
+            <span class="font-bold text-lg truncate">{{ animal.nombre || (animal.chapeta ? 'Chapeta ' + animal.chapeta : 'Sin chapeta') }}</span>
+            @if (animal.pendiente) {
+              <span class="badge badge-warning"><app-icono nombre="celular" clase="w-3.5 h-3.5" /> por subir</span>
+            }
+          </span>
+          <span class="block text-suave">{{ animal.categoria }} · {{ animal.edad }}</span>
+          <span class="flex items-center gap-1.5 text-sm text-suave">
+            <app-icono nombre="pesa" clase="w-4 h-4" />
+            @if (animal.peso !== null) { <b class="text-texto">{{ animal.peso }} kg</b> el {{ animal.fechaPeso }} } @else { Sin pesar }
+          </span>
+        </span>
+        <app-icono nombre="flecha" clase="w-5 h-5 text-suave shrink-0" />
+      </a>
+    }
+  </div>
+}
