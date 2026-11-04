@@ -1,0 +1,117 @@
+<div class="max-w-xl mx-auto grid gap-4">
+
+  <!-- EL PERIODO -->
+  <section class="card p-4">
+    <p class="label-field mb-2">¿De qué tiempo?</p>
+    <div class="flex flex-wrap gap-2" role="group" aria-label="Periodo">
+      @for (o of opciones; track o.valor) {
+        <button type="button" class="btn-secundario px-4 min-h-[44px]" [class.border-primario]="periodo === o.valor" [class.bg-tarjeta-alta]="periodo === o.valor"
+          [attr.aria-pressed]="periodo === o.valor" (click)="elegirPeriodo(o.valor)" [disabled]="consultando">{{ o.texto }}</button>
+      }
+    </div>
+    @if (periodo === 'OTRO') {
+      <div class="grid grid-cols-2 gap-3 mt-3">
+        <div>
+          <label class="label-field" for="desde">Desde</label>
+          <input id="desde" type="date" class="input-field" [(ngModel)]="desde" [max]="hasta" [class.input-error]="errorPeriodo">
+        </div>
+        <div>
+          <label class="label-field" for="hasta">Hasta</label>
+          <input id="hasta" type="date" class="input-field" [(ngModel)]="hasta" [min]="desde" [class.input-error]="errorPeriodo">
+        </div>
+      </div>
+      @if (errorPeriodo) { <p class="texto-error">{{ errorPeriodo }}</p> } @else { <p class="ayuda mt-1 mb-0">Hasta 3 años.</p> }
+      <button type="button" class="btn-primary w-full mt-3" (click)="consultar()" [disabled]="consultando || !estado.enLinea">Ver estas fechas</button>
+    }
+  </section>
+
+  <!-- DE CUANDO SON LOS NUMEROS -->
+  <div class="card p-4 flex items-center gap-3">
+    <span class="grid place-items-center w-12 h-12 rounded-2xl bg-info-fondo text-info shrink-0"><app-icono nombre="reloj" clase="w-7 h-7" /></span>
+    <div class="min-w-0 flex-1 leading-snug">
+      @if (cargando || (consultando && !i)) {
+        <p class="m-0 text-suave">Calculando los indicadores...</p>
+      } @else if (!i) {
+        <p class="m-0 font-bold">Todavía no hay indicadores en este celular</p>
+        <p class="m-0 text-sm text-suave">Se calculan en el servidor: hace falta señal la primera vez.</p>
+      } @else {
+        <p class="m-0 font-bold">Del {{ fechaLegible(i.DESDE) }} al {{ fechaLegible(i.HASTA) }}</p>
+        <p class="m-0 text-sm text-suave">Calculados el {{ recibidas }}{{ consultando ? ' · actualizando...' : '' }}</p>
+      }
+    </div>
+    <button type="button" class="btn-secundario px-4 shrink-0" (click)="consultar()" [disabled]="!estado.enLinea || consultando" aria-label="Actualizar los indicadores">
+      <app-icono nombre="sincronizar" clase="w-5 h-5" [class.animate-spin]="consultando" />
+    </button>
+  </div>
+  @if (errorConsulta) { <p class="aviso-error m-0" role="status">{{ errorConsulta }}</p> }
+  <p class="ayuda m-0">Los calcula el servidor con lo que ya se subió. Lo registrado sin señal cuenta cuando se sincronice.</p>
+
+  @if (i) {
+    <!-- LOS NUMEROS GRANDES, CADA UNO CON SU EXPLICACION -->
+    <section class="grid grid-cols-2 gap-3" aria-label="Indicadores">
+      <div class="card p-4">
+        <p class="m-0 text-sm text-suave">Natalidad</p>
+        <p class="m-0 text-3xl font-bold" data-indicador="natalidad">{{ n(i.NATALIDAD.PORCENTAJE, 1) }}{{ i.NATALIDAD.PORCENTAJE !== null ? ' %' : '' }}</p>
+        <p class="ayuda mt-1 mb-0">{{ i.NATALIDAD.CRIAS_VIVAS }} {{ i.NATALIDAD.CRIAS_VIVAS === 1 ? 'cría viva' : 'crías vivas' }} de {{ i.NATALIDAD.HEMBRAS }} {{ i.NATALIDAD.HEMBRAS === 1 ? 'hembra' : 'hembras' }} de 2 años o más (o que ya parieron).</p>
+      </div>
+      <div class="card p-4">
+        <p class="m-0 text-sm text-suave">Mortalidad</p>
+        <p class="m-0 text-3xl font-bold" data-indicador="mortalidad">{{ n(i.MORTALIDAD.PORCENTAJE, 1) }}{{ i.MORTALIDAD.PORCENTAJE !== null ? ' %' : '' }}</p>
+        <p class="ayuda mt-1 mb-0">{{ i.MORTALIDAD.MUERTES }} {{ i.MORTALIDAD.MUERTES === 1 ? 'muerte' : 'muertes' }} de {{ i.MORTALIDAD.ANIMALES }} animales que estuvieron en la finca.</p>
+      </div>
+      <div class="card p-4">
+        <p class="m-0 text-sm text-suave">Entre partos</p>
+        <p class="m-0 text-3xl font-bold" data-indicador="intervalo">{{ n(i.INTERVALO_PARTOS.PROMEDIO_DIAS) }}{{ i.INTERVALO_PARTOS.PROMEDIO_DIAS !== null ? ' días' : '' }}</p>
+        <p class="ayuda mt-1 mb-0">
+          @if (i.INTERVALO_PARTOS.INTERVALOS) { Promedio entre dos partos seguidos de la misma vaca ({{ i.INTERVALO_PARTOS.INTERVALOS }} {{ i.INTERVALO_PARTOS.INTERVALOS === 1 ? 'caso' : 'casos' }}). Lo ideal es cerca de 365. }
+          @else { Sale cuando una vaca tenga su segundo parto registrado. }
+        </p>
+      </div>
+      <div class="card p-4">
+        <p class="m-0 text-sm text-suave">Leche por vaca</p>
+        <p class="m-0 text-3xl font-bold" data-indicador="leche">{{ n(i.LECHE.LITROS_VACA_DIA, 1) }}{{ i.LECHE.LITROS_VACA_DIA !== null ? ' L' : '' }}</p>
+        <p class="ayuda mt-1 mb-0">Litros por vaca al día. {{ n(i.LECHE.LITROS_TOTALES, 1, 0) }} L en {{ i.LECHE.DIAS_CON_ORDENO }} {{ i.LECHE.DIAS_CON_ORDENO === 1 ? 'día' : 'días' }} con ordeño.</p>
+      </div>
+      <div class="card p-4">
+        <p class="m-0 text-sm text-suave">Ganancia de peso</p>
+        <p class="m-0 text-3xl font-bold" data-indicador="ganancia">{{ n(i.GANANCIA_PESO.GRAMOS_DIA) }}{{ i.GANANCIA_PESO.GRAMOS_DIA !== null ? ' g' : '' }}</p>
+        <p class="ayuda mt-1 mb-0">
+          @if (i.GANANCIA_PESO.ANIMALES) { Gramos al día, promedio de {{ i.GANANCIA_PESO.ANIMALES }} {{ i.GANANCIA_PESO.ANIMALES === 1 ? 'animal' : 'animales' }} con dos pesajes separados al menos 14 días. }
+          @else { Sale con animales pesados dos veces, con al menos 14 días entre un pesaje y otro. }
+        </p>
+      </div>
+      <div class="card p-4">
+        <p class="m-0 text-sm text-suave">Ventas</p>
+        <p class="m-0 text-2xl font-bold break-words" data-indicador="ventas">{{ valorVentas }}</p>
+        <p class="ayuda mt-1 mb-0">{{ i.VENTAS.CANTIDAD }} {{ i.VENTAS.CANTIDAD === 1 ? 'animal vendido' : 'animales vendidos' }} en el periodo.</p>
+      </div>
+    </section>
+
+    <!-- LAS GRAFICAS -->
+    <section class="card p-4">
+      <app-grafica-barras titulo="Leche por mes" unidad="L" [datos]="lechePorMes" [decimales]="0" />
+      <p class="ayuda mt-2 mb-0">Litros ordeñados en cada mes del periodo.</p>
+    </section>
+    <section class="card p-4">
+      <app-grafica-barras titulo="Partos por mes" [datos]="partosPorMes" />
+      <p class="ayuda mt-2 mb-0">{{ partosEnPeriodo }} {{ partosEnPeriodo === 1 ? 'parto' : 'partos' }} en el periodo, contando los abortos.</p>
+    </section>
+    <section class="card p-4">
+      <app-grafica-barras titulo="Ganancia de peso por lote" unidad="g/día" [datos]="gananciaPorLote" [horizontal]="true" />
+      <p class="ayuda mt-2 mb-0">Cada animal cuenta en el lote en que está hoy.</p>
+    </section>
+    <section class="card p-4">
+      <app-grafica-barras titulo="El hato hoy" [datos]="hatoPorCategoria" [horizontal]="true" />
+      <p class="ayuda mt-2 mb-0">{{ totalHato }} animales activos. Este no depende del periodo: es como está la finca hoy.</p>
+    </section>
+  }
+
+  <!-- EL EXCEL -->
+  <section class="card p-4">
+    <h2 class="text-lg font-semibold flex items-center gap-2 m-0"><app-icono nombre="descargar" clase="w-6 h-6" /> Excel de la finca</h2>
+    <p class="ayuda mt-1 mb-3">Todo lo que hay en este celular: hato, pesajes, ordeños, vacunas, reproducción y salidas, más estos indicadores. Sirve sin señal; lo que falte subir sale marcado.</p>
+    <button type="button" class="btn-primary w-full" (click)="descargarExcel()" [disabled]="generandoExcel" data-accion="excel">
+      {{ generandoExcel ? 'Armando el Excel...' : 'Descargar Excel' }}
+    </button>
+  </section>
+</div>

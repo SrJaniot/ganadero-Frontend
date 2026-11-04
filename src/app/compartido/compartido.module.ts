@@ -5,11 +5,12 @@ import { Icono } from './icono/icono';
 import { ConfirmarAccion } from './confirmar-accion/confirmar-accion';
 import { PesosPipe } from './pesos.pipe';
 import { ElegirAnimal } from './elegir-animal/elegir-animal';
+import { GraficaBarras } from './grafica-barras/grafica-barras';
 
-//PIEZAS QUE SE USAN EN VARIOS MODULOS: ICONOS, EL MODAL DE CONFIRMACION, EL PIPE DE PESOS Y ELEGIR UN ANIMAL (TODOS LOS EVENTOS)
+//PIEZAS QUE SE USAN EN VARIOS MODULOS: ICONOS, EL MODAL DE CONFIRMACION, EL PIPE DE PESOS ELEGIR UN ANIMAL (TODOS LOS EVENTOS) Y LA GRAFICA DE BARRAS (INDICADORES)
 @NgModule({
-  declarations: [Icono, ConfirmarAccion, PesosPipe, ElegirAnimal],
+  declarations: [Icono, ConfirmarAccion, PesosPipe, ElegirAnimal, GraficaBarras],
   imports: [CommonModule, FormsModule],
-  exports: [Icono, ConfirmarAccion, PesosPipe, ElegirAnimal],
+  exports: [Icono, ConfirmarAccion, PesosPipe, ElegirAnimal, GraficaBarras],
 })
 export class CompartidoModule {}

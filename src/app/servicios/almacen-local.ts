@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import Dexie, { liveQuery, Table } from 'dexie';
 import { from, Observable } from 'rxjs';
-import { AnimalDTO, CambiosDTO, EventosAnimal, LoteDTO, OrdenoDTO, PartoDTO, PesajeDTO, RazaDTO, RegistroBandeja, ResultadoRegistro, ServicioDTO, TipoRegistro, VacunaDTO } from '../Modelos/GanaderoModel';
+import { AnimalDTO, CambiosDTO, EventosAnimal, LoteDTO, OrdenoDTO, PalpacionDTO, PartoDTO, PesajeDTO, RazaDTO, RegistroBandeja, ResultadoRegistro, SalidaDTO, ServicioDTO, TipoRegistro, VacunacionDTO, VacunaDTO } from '../Modelos/GanaderoModel';
 
 // ALMACEN LOCAL DE GANADERO (DEXIE SOBRE INDEXEDDB). ES EL UNICO ARCHIVO QUE TOCA INDEXEDDB (DECISION DEL 22/10/2026)
 // UNA BASE POR FINCA ("ganadero-finca-<ID_FINCA>") CON DOS PARTES:
@@ -250,6 +250,26 @@ export class AlmacenLocalService {
         await db.meta.put({ clave: 'FINCA', valor: cambios.FINCA });
       }
     });
+  }
+
+  //TODA LA COPIA DE LA FINCA PARA EL EXCEL (FASE 4): SOLO LEE, SIN ANULADOS. LO PENDIENTE DE SUBIR TAMBIEN VA (MARCADO)
+  async leerTodoParaExcel() {
+    const db = this.db;
+    const [animales, lotes, pesajes, vacunaciones, servicios, palpaciones, partos, ordenos, salidas, razas, vacunas] = await Promise.all([
+      db.animales.toArray(), db.lotes.toArray(), db.pesajes.toArray(), db.vacunaciones.toArray(), db.servicios.toArray(),
+      db.palpaciones.toArray(), db.partos.toArray(), db.ordenos.toArray(), db.salidas.toArray(), db.razas.toArray(), db.vacunas.toArray(),
+    ]);
+    return {
+      animales: animales.filter(a => a.ESTADO_ANIMAL !== 'ANULADO'),
+      lotes, razas, vacunas,
+      pesajes: pesajes.filter(x => x.ESTADO_PESAJE === 'ACTIVO'),
+      vacunaciones: (vacunaciones as VacunacionDTO[]).filter(x => x.ESTADO_VACUNACION === 'ACTIVO'),
+      servicios: (servicios as ServicioDTO[]).filter(x => x.ESTADO_SERVICIO === 'ACTIVO'),
+      palpaciones: (palpaciones as PalpacionDTO[]).filter(x => x.ESTADO_PALPACION === 'ACTIVO'),
+      partos: (partos as PartoDTO[]).filter(x => x.ESTADO_PARTO === 'ACTIVO'),
+      ordenos: (ordenos as OrdenoDTO[]).filter(x => x.ESTADO_ORDENO === 'ACTIVO'),
+      salidas: (salidas as SalidaDTO[]).filter(x => x.ESTADO_SALIDA === 'ACTIVO'),
+    };
   }
 
   async leerMeta<T = any>(clave: string): Promise<T | null> {

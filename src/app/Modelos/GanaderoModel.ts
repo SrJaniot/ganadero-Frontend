@@ -296,3 +296,20 @@ export interface RespuestaServerSincronizar extends RespuestaServer { DATOS?: Re
 export interface RespuestaServerCambios extends RespuestaServer { DATOS?: CambiosDTO }
 export interface RespuestaServerObtenerSincronizaciones extends RespuestaServer { DATOS?: SincronizacionDTO[] }
 export interface RespuestaServerLineaTiempo extends RespuestaServer { DATOS?: EventoLineaTiempoDTO[] }
+
+//INDICADORES (FASE 4, MENU 6): LOS CALCULA FUN_OBTENER_INDICADORES_JSON; EL CELULAR GUARDA LA ULTIMA RESPUESTA (meta 'INDICADORES')
+export interface IndicadoresDTO {
+  DESDE: string;
+  HASTA: string;
+  ANIMALES_EN_EL_PERIODO: number;
+  HATO_POR_CATEGORIA: { CATEGORIA: string; CANTIDAD: number }[];
+  NATALIDAD: { CRIAS_VIVAS: number; HEMBRAS: number; PORCENTAJE: number | null };
+  MORTALIDAD: { MUERTES: number; ANIMALES: number; PORCENTAJE: number | null };
+  INTERVALO_PARTOS: { PROMEDIO_DIAS: number | null; INTERVALOS: number };
+  LECHE: { LITROS_TOTALES: number; DIAS_CON_ORDENO: number; LITROS_VACA_DIA: number | null; POR_MES: { MES: string; LITROS: number; LITROS_VACA_DIA: number | null }[] };
+  PARTOS_POR_MES: { MES: string; PARTOS: number; CRIAS_VIVAS: number }[];
+  GANANCIA_PESO: { GRAMOS_DIA: number | null; ANIMALES: number; POR_LOTE: { NOM_LOTE: string; ANIMALES: number; GRAMOS_DIA: number | null }[] };
+  VENTAS: { CANTIDAD: number; VALOR_TOTAL: number };
+}
+export interface IndicadoresGuardados { indicadores: IndicadoresDTO; recibidas: string; periodo: string; }
+export interface RespuestaServerIndicadores extends RespuestaServer { DATOS?: IndicadoresDTO }

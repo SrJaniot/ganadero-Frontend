@@ -42,6 +42,18 @@
   </a>
 }
 
+<!-- INDICADORES Y EXCEL (FASE 4): SOLO DUEÑO Y VETERINARIO -->
+@if (puedeVerIndicadores && !hatoVacio) {
+  <a routerLink="/app/indicadores" class="card p-4 mb-4 flex items-center gap-3 no-underline text-texto" data-accion="indicadores">
+    <span class="grid place-items-center w-12 h-12 rounded-2xl shrink-0 bg-tarjeta-alta text-primario-texto"><app-icono nombre="historial" clase="w-7 h-7" /></span>
+    <span class="min-w-0 flex-1 leading-snug">
+      <span class="block font-bold text-lg">Indicadores y Excel</span>
+      <span class="block text-suave">Natalidad, leche, ganancia de peso y ventas</span>
+    </span>
+    <app-icono nombre="flecha" clase="w-5 h-5 text-suave" />
+  </a>
+}
+
 <!-- HATO VACIO: INVITAR A REGISTRAR EL PRIMER ANIMAL -->
 @if (hatoVacio) {
   <div class="ayuda-finca mb-4 flex items-start gap-3">

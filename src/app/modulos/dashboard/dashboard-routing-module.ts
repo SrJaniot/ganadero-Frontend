@@ -27,6 +27,11 @@ const routes: Routes = [
         data: { titulo: 'Para hoy' }
       },
       {
+        path: 'indicadores',
+        loadChildren: () => import('./pages/indicadores/indicadores.module').then(m => m.IndicadoresModule),
+        data: { titulo: 'Indicadores' }
+      },
+      {
         path: 'hato',
         loadChildren: () => import('./pages/hato/hato.module').then(m => m.HatoModule),
         data: { titulo: 'Hato' }
