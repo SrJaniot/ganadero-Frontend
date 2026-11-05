@@ -1,3 +1,4 @@
+import { enlaceAnimal } from '../../../../compartido/codigo-qr/codigo-qr';
 import { ChangeDetectorRef, Component, inject, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { finalize, Subscription } from 'rxjs';
@@ -85,6 +86,8 @@ export class FichaAnimalComponent implements OnInit, OnDestroy {
 
   //ANULAR
   confirmarAnular = false;
+  verQr = false;
+  readonly enlaceAnimal = enlaceAnimal;
   anulando = false;
   //ANULAR UN EVENTO DE LA LINEA DE TIEMPO (SOLO EL DUEÑO)
   private eventosService = inject(EventosService);

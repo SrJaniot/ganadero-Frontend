@@ -23,6 +23,7 @@
     "leaflet": "1.9.4",
     "ng-angular-popup": "^2.1.0",
     "postcss": "^8.5.28",
+    "qrcode": "1.5.4",
     "rxjs": "~7.8.0",
     "tailwindcss": "^4.3.3",
     "tslib": "^2.3.0"
@@ -32,6 +33,7 @@
     "@angular/cli": "^21.2.9",
     "@angular/compiler-cli": "^21.2.0",
     "@types/leaflet": "1.9.12",
+    "@types/qrcode": "1.5.5",
     "jsdom": "^28.0.0",
     "prettier": "^3.8.1",
     "typescript": "~5.9.2",

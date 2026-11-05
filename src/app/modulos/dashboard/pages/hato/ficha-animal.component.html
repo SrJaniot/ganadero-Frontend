@@ -93,6 +93,9 @@
       </div>
     }
 
+    <!-- QR DE LA CHAPETA (FASE 5C) -->
+    <button type="button" class="btn-secundario w-full mt-3" (click)="verQr = true" data-accion="ver-qr">QR de la chapeta</button>
+
     @if (esDuenio) {
       <div class="grid gap-2 mt-3" [class.grid-cols-2]="activo">
         <a [routerLink]="['/app/hato', animal.UUID_ANIMAL, 'editar']" class="btn-secundario w-full"><app-icono nombre="lapiz" clase="w-5 h-5" /> Editar</a>
@@ -230,3 +233,18 @@
   [procesando]="anulandoEvento"
   (confirmar)="anularEventoConfirmado()"
   (cancelar)="eventoPorAnular = null" />
+
+<!-- QR DE LA CHAPETA: AL ESCANEARLO SE ABRE ESTA FICHA -->
+@if (verQr && animal) {
+  <div class="modal-centro" (click)="verQr = false">
+    <div class="modal-caja grid gap-3 justify-items-center text-center" (click)="$event.stopPropagation()" role="dialog" aria-modal="true" aria-label="QR de la chapeta">
+      <div class="flex items-center gap-3 w-full">
+        <h2 class="text-xl font-semibold flex-1 m-0 text-left">QR de {{ textoAnimal }}</h2>
+        <button type="button" class="btn-icono" (click)="verQr = false" aria-label="Cerrar"><app-icono nombre="cerrar" clase="w-6 h-6" /></button>
+      </div>
+      <app-codigo-qr [texto]="enlaceAnimal(animal.UUID_ANIMAL)" [tamano]="240" [etiqueta]="'QR de ' + textoAnimal" />
+      <p class="ayuda m-0">Al escanearlo con la cámara del celular se abre esta ficha. Imprímelo y pégalo en la chapeta o en el corral.</p>
+      <a routerLink="/app/hato/qr" [queryParams]="{ animal: animal.UUID_ANIMAL }" class="btn-primary w-full">Imprimir este QR</a>
+    </div>
+  </div>
+}

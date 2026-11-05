@@ -299,3 +299,12 @@ h1, h2, h3, h4 {
 .leaflet-container { font: inherit; }
 .leaflet-tooltip.etiqueta-potrero { background: var(--tarjeta); color: var(--texto); border: 1px solid var(--borde); font-weight: 700; border-radius: 9999px; padding: 2px 10px; box-shadow: none; }
 .leaflet-tooltip.etiqueta-potrero::before { display: none; }
+
+/* HOJA DE QR PARA IMPRIMIR (FASE 5C): AL IMPRIMIR SOLO SALE .zona-imprimir, EN BLANCO Y NEGRO Y SIN PARTIR UN CUADRO ENTRE DOS PAGINAS */
+@media print {
+  body * { visibility: hidden !important; }
+  .zona-imprimir, .zona-imprimir * { visibility: visible !important; }
+  .zona-imprimir { position: absolute; left: 0; top: 0; width: 100%; display: grid !important; grid-template-columns: repeat(3, 1fr) !important; gap: 4mm !important; }
+  .zona-imprimir .etiqueta-qr { break-inside: avoid; box-shadow: none !important; border: 1px dashed #999 !important; background: #fff !important; color: #000 !important; }
+  .no-imprimir { display: none !important; }
+}

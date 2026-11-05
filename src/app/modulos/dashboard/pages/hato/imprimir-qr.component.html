@@ -1,0 +1,41 @@
+<div class="max-w-xl mx-auto grid grid-cols-1 gap-4">
+  <div class="no-imprimir grid grid-cols-1 gap-4">
+    <a routerLink="/app/hato" class="btn-secundario self-start"><app-icono nombre="vaca" clase="w-5 h-5" /> Volver al hato</a>
+    <p class="ayuda-finca m-0">
+      Imprime esta hoja, recorta cada cuadro y pégalo en la chapeta (con cinta transparente) o en el corral. Al escanear el código con la cámara
+      del celular se abre la ficha del animal. Funciona sin señal si la app está instalada.
+    </p>
+    @if (!soloAnimal && lotes.length) {
+      <div>
+        <p class="label-field mb-1.5">¿De qué lote?</p>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" class="min-h-[44px]" [class]="!filtroLote ? 'btn-primary' : 'btn-secundario'" (click)="elegirLote(null)">Todos</button>
+          @for (l of lotes; track l.UUID_LOTE) {
+            <button type="button" class="min-h-[44px]" [class]="filtroLote === l.UUID_LOTE ? 'btn-primary' : 'btn-secundario'" (click)="elegirLote(l.UUID_LOTE)">{{ l.NOM_LOTE }}</button>
+          }
+        </div>
+      </div>
+    }
+    <button type="button" class="btn-primary min-h-[58px] text-lg" (click)="imprimir()" [disabled]="!etiquetas.length" data-accion="imprimir">
+      Imprimir {{ etiquetas.length }} {{ etiquetas.length === 1 ? 'código' : 'códigos' }}
+    </button>
+  </div>
+
+  @if (cargando) {
+    <div class="card p-6 text-suave text-center">Buscando el hato en el celular...</div>
+  } @else if (!etiquetas.length) {
+    <div class="card p-6 text-center text-suave">No hay animales activos para imprimir.</div>
+  } @else {
+    <!-- LA HOJA: AL IMPRIMIR SOLO SALE ESTO (styles.scss, @media print) -->
+    <div class="zona-imprimir grid grid-cols-2 gap-3">
+      @for (e of etiquetas; track e.uuid) {
+        <div class="etiqueta-qr card p-3 flex flex-col items-center text-center" [attr.data-etiqueta]="e.chapeta">
+          <app-codigo-qr [texto]="e.enlace" [tamano]="140" [etiqueta]="'QR de ' + e.chapeta" />
+          <b class="text-2xl mt-1 leading-tight break-all">{{ e.chapeta }}</b>
+          <span class="text-sm leading-tight">{{ e.nombre || e.categoria }}</span>
+          <span class="text-xs text-suave leading-tight">{{ nombreFinca }}</span>
+        </div>
+      }
+    </div>
+  }
+</div>

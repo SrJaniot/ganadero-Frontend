@@ -7,19 +7,24 @@ import { ListaAnimalesComponent } from './lista-animales.component';
 import { NuevoAnimalComponent } from './nuevo-animal.component';
 import { FichaAnimalComponent } from './ficha-animal.component';
 import { LotesComponent } from './lotes.component';
+import { ImprimirQrComponent } from './imprimir-qr.component';
+import { EscanearQrComponent } from './escanear-qr.component';
 
 //MENU 3 HATO (FASE 1: LOTES, EDITAR Y ANULAR, FOTO, MADRE Y PADRE)
 const routes: Routes = [
   { path: '', component: ListaAnimalesComponent },
   { path: 'nuevo', component: NuevoAnimalComponent, data: { titulo: 'Animal nuevo' } },
   { path: 'lotes', component: LotesComponent, data: { titulo: 'Lotes' } },
+  //FASE 5C: QR DE LAS CHAPETAS (ANTES DE :uuid)
+  { path: 'qr', component: ImprimirQrComponent, data: { titulo: 'QR para las chapetas' } },
+  { path: 'escanear', component: EscanearQrComponent, data: { titulo: 'Escanear chapeta' } },
   //EDITAR USA EL MISMO FORMULARIO DEL ANIMAL NUEVO (data.modo = 'editar'), SOLO EL DUEÑO
   { path: ':uuid/editar', component: NuevoAnimalComponent, data: { titulo: 'Editar animal', modo: 'editar' } },
   { path: ':uuid', component: FichaAnimalComponent, data: { titulo: 'Ficha del animal' } },
 ];
 
 @NgModule({
-  declarations: [ListaAnimalesComponent, NuevoAnimalComponent, FichaAnimalComponent, LotesComponent],
+  declarations: [ListaAnimalesComponent, NuevoAnimalComponent, FichaAnimalComponent, LotesComponent, ImprimirQrComponent, EscanearQrComponent],
   imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterModule.forChild(routes), CompartidoModule],
 })
 export class HatoModule {}
