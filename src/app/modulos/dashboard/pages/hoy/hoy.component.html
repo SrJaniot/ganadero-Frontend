@@ -54,6 +54,18 @@
   </a>
 }
 
+<!-- PLATA (FASE 5B): SOLO EL DUEÑO (MENU 2) -->
+@if (puedeVerPlata) {
+  <a routerLink="/app/plata" class="card p-4 mb-4 flex items-center gap-3 no-underline text-texto" data-accion="plata">
+    <span class="grid place-items-center w-12 h-12 rounded-2xl shrink-0 bg-tarjeta-alta text-primario-texto"><app-icono nombre="alcancia" clase="w-7 h-7" /></span>
+    <span class="min-w-0 flex-1 leading-snug">
+      <span class="block font-bold text-lg">Plata de la finca</span>
+      <span class="block text-suave">Anota ingresos y gastos; mira cómo va el mes</span>
+    </span>
+    <app-icono nombre="flecha" clase="w-5 h-5 text-suave" />
+  </a>
+}
+
 <!-- HATO VACIO: INVITAR A REGISTRAR EL PRIMER ANIMAL -->
 @if (hatoVacio) {
   <div class="ayuda-finca mb-4 flex items-start gap-3">

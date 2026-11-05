@@ -23,6 +23,7 @@ export class GraficaBarras {
   @Input() unidad = '';
   @Input() horizontal = false;
   @Input() decimales = 0;
+  @Input() prefijo = '';
 
   activo: number | null = null;
   verTabla = false;
@@ -34,7 +35,8 @@ export class GraficaBarras {
   readonly margenAbajo = 26;
   readonly margenArriba = 22;
   readonly filaHorizontal = 40;
-  readonly etiquetaHorizontal = 90;
+  //ANCHO PARA LOS NOMBRES EN LAS BARRAS HORIZONTALES (LOS NOMBRES LARGOS, COMO LAS CATEGORIAS DE LA PLATA, PIDEN MAS)
+  @Input() etiquetaHorizontal = 90;
 
   get maximo(): number {
     const m = Math.max(0, ...this.datos.map(d => d.valor));
@@ -56,7 +58,7 @@ export class GraficaBarras {
   }
 
   fmt(v: number): string {
-    return v.toLocaleString('es-CO', { minimumFractionDigits: this.decimales, maximumFractionDigits: this.decimales });
+    return this.prefijo + v.toLocaleString('es-CO', { minimumFractionDigits: this.decimales, maximumFractionDigits: this.decimales });
   }
 
   //---------------------------------------------COLUMNAS (VERTICAL)-----------------------------------------------------------------
@@ -110,6 +112,15 @@ export class GraficaBarras {
   }
 
   //---------------------------------------------BARRAS (HORIZONTAL)-----------------------------------------------------------------
+  //CUANTAS LETRAS CABEN EN LA ZONA DEL NOMBRE (A 13 PX, UNOS 7 PX POR LETRA)
+  get letrasEtiqueta(): number {
+    return Math.floor(this.etiquetaHorizontal / 7);
+  }
+
+  etiquetaCorta(texto: string): string {
+    return texto.length > this.letrasEtiqueta ? texto.slice(0, this.letrasEtiqueta - 1) + '…' : texto;
+  }
+
   get altoHorizontal(): number {
     return this.datos.length * this.filaHorizontal + 6;
   }

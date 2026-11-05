@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import Dexie, { liveQuery, Table } from 'dexie';
 import { from, Observable } from 'rxjs';
-import { AnimalDTO, CambiosDTO, EventosAnimal, LoteDTO, OcupacionDTO, OrdenoDTO, PalpacionDTO, PartoDTO, PotreroDTO, PesajeDTO, RazaDTO, RegistroBandeja, ResultadoRegistro, SalidaDTO, ServicioDTO, TipoRegistro, VacunacionDTO, VacunaDTO } from '../Modelos/GanaderoModel';
+import { AnimalDTO, CambiosDTO, EventosAnimal, LoteDTO, MovimientoDTO, OcupacionDTO, OrdenoDTO, PalpacionDTO, PartoDTO, PotreroDTO, PesajeDTO, RazaDTO, RegistroBandeja, ResultadoRegistro, SalidaDTO, ServicioDTO, TipoRegistro, VacunacionDTO, VacunaDTO } from '../Modelos/GanaderoModel';
 
 // ALMACEN LOCAL DE GANADERO (DEXIE SOBRE INDEXEDDB). ES EL UNICO ARCHIVO QUE TOCA INDEXEDDB (DECISION DEL 22/10/2026)
 // UNA BASE POR FINCA ("ganadero-finca-<ID_FINCA>") CON DOS PARTES:
@@ -22,6 +22,7 @@ const TABLA_POR_TIPO: Record<TipoRegistro, { tabla: string; llave: string }> = {
   SALIDA: { tabla: 'salidas', llave: 'UUID_SALIDA' },
   POTRERO: { tabla: 'potreros', llave: 'UUID_POTRERO' },
   OCUPACION: { tabla: 'ocupaciones', llave: 'UUID_OCUPACION' },
+  MOVIMIENTO: { tabla: 'movimientos', llave: 'UUID_MOVIMIENTO' },
 };
 
 const PREFIJO_BASE = 'ganadero-finca-';
@@ -45,6 +46,7 @@ class BaseFinca extends Dexie {
   fotos!: Table<{ uuid: string; archivo: string; foto: Blob }, string>;
   potreros!: Table<PotreroDTO, string>;
   ocupaciones!: Table<OcupacionDTO, string>;
+  movimientos!: Table<MovimientoDTO, string>;
 
   constructor(nombre: string) {
     super(nombre);
@@ -74,6 +76,10 @@ class BaseFinca extends Dexie {
     this.version(3).stores({
       potreros: 'UUID_POTRERO',
       ocupaciones: 'UUID_OCUPACION, UUID_LOTE, UUID_POTRERO',
+    });
+    //VERSION 4 (FASE 5B): LA PLATA DE LA FINCA (SOLO LLEGA AL CELULAR DEL DUEÑO)
+    this.version(4).stores({
+      movimientos: 'UUID_MOVIMIENTO',
     });
   }
 }
@@ -146,6 +152,18 @@ export class AlmacenLocalService {
   //NO VAN A LA BANDEJA: AL SINCRONIZAR, LA BAJADA TRAE LA FICHA OFICIAL
   actualizarAnimalLocal(uuid: string, cambios: Partial<AnimalDTO>): Promise<number> {
     return this.db.animales.update(uuid, cambios);
+  }
+
+  //---------------------------------------------PLATA (FASE 5B)-------------------------------------------------------------------
+
+  //LOS MOVIMIENTOS ANOTADOS Y LAS VENTAS DE ANIMALES (SALIDAS VENDIDAS CON VALOR), CON LOS ANIMALES PARA NOMBRARLOS
+  observarPlata(): Observable<{ movimientos: MovimientoDTO[]; ventas: SalidaDTO[]; animales: AnimalDTO[] }> {
+    const db = this.db;
+    return from(liveQuery(async () => ({
+      movimientos: (await db.movimientos.toArray()).filter(m => m.ESTADO_MOVIMIENTO === 'ACTIVO'),
+      ventas: (await db.salidas.toArray()).filter((s: SalidaDTO) => s.ESTADO_SALIDA === 'ACTIVO' && s.TIPO_SALIDA === 'VENTA' && Number(s.VALOR_SALIDA) > 0),
+      animales: await db.animales.toArray(),
+    })));
   }
 
   //---------------------------------------------POTREROS (FASE 5A)----------------------------------------------------------------
@@ -286,6 +304,7 @@ export class AlmacenLocalService {
       ['vacunaciones', cambios.VACUNACIONES], ['servicios', cambios.SERVICIOS], ['palpaciones', cambios.PALPACIONES],
       ['partos', cambios.PARTOS], ['ordenos', cambios.ORDENOS], ['salidas', cambios.SALIDAS],
       ['potreros', cambios.POTREROS ?? []], ['ocupaciones', cambios.OCUPACIONES ?? []],
+      ['movimientos', cambios.MOVIMIENTOS ?? []],
       ['razas', cambios.RAZAS], ['vacunas', cambios.VACUNAS], ['ciclos', cambios.CICLOS_ICA], ['personas', cambios.PERSONAS],
     ];
     await db.transaction('rw', [...tablasFinca.map(([t]) => db.table(t)), db.meta], async () => {

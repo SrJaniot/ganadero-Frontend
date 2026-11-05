@@ -218,6 +218,36 @@ export interface OcupacionDTO {
   _pendiente?: boolean;
 }
 
+//PLATA (FASE 5B, SOLO EL DUEÑO) ----------------------------------------------------------------------------------------------------
+export type TipoMovimiento = 'INGRESO' | 'GASTO';
+export type CategoriaMovimiento = 'VENTA_LECHE' | 'OTRO_INGRESO' | 'COMPRA_ANIMAL' | 'DROGAS' | 'SAL_CONCENTRADO' | 'JORNALES' | 'OTRO_GASTO';
+export interface MovimientoDTO {
+  UUID_MOVIMIENTO: string;
+  FECHA_EVENTO: string;
+  TIPO_MOVIMIENTO: TipoMovimiento;
+  CATEGORIA_MOVIMIENTO: CategoriaMovimiento;
+  VALOR_MOVIMIENTO: number | string;
+  LITROS_MOVIMIENTO: number | string | null;
+  DESCRIPCION_MOVIMIENTO: string | null;
+  ESTADO_MOVIMIENTO: 'ACTIVO' | 'ANULADO';
+  USUARIO_CREACION?: string;
+  _pendiente?: boolean;
+}
+
+//EL RESUMEN QUE CALCULA FUN_OBTENER_PLATA_JSON (CATEGORIA VENTA_ANIMAL = LAS SALIDAS VENDIDAS CON VALOR)
+export interface PlataDTO {
+  DESDE: string;
+  HASTA: string;
+  INGRESOS: number;
+  GASTOS: number;
+  SALDO: number;
+  POR_CATEGORIA: { TIPO: TipoMovimiento; CATEGORIA: CategoriaMovimiento | 'VENTA_ANIMAL'; VALOR: number; CANTIDAD: number }[];
+  POR_MES: { MES: string; INGRESOS: number; GASTOS: number; SALDO: number }[];
+  LECHE: { LITROS: number | null; VALOR: number; PRECIO_LITRO: number | null };
+}
+export interface PlataGuardada { plata: PlataDTO; recibida: string; periodo: string; }
+export interface RespuestaServerPlata extends RespuestaServer { DATOS?: PlataDTO }
+
 //TODO LO QUE LE HA PASADO A UN ANIMAL EN EL CELULAR (LA FICHA ARMA CON ESTO SU LINEA DE TIEMPO, SIN SEÑAL)
 export interface EventosAnimal {
   pesajes: PesajeDTO[];
@@ -247,7 +277,7 @@ export interface AlertasGuardadas { alertas: AlertasDTO; recibidas: string; }
 export interface RespuestaServerAlertas extends RespuestaServer { DATOS?: AlertasDTO }
 
 //SINCRONIZACION ---------------------------------------------------------------------------------------------------------------------
-export type TipoRegistro = 'LOTE' | 'ANIMAL' | 'PESAJE' | 'VACUNACION' | 'SERVICIO' | 'PALPACION' | 'PARTO' | 'ORDENO' | 'SALIDA' | 'POTRERO' | 'OCUPACION';
+export type TipoRegistro = 'LOTE' | 'ANIMAL' | 'PESAJE' | 'VACUNACION' | 'SERVICIO' | 'PALPACION' | 'PARTO' | 'ORDENO' | 'SALIDA' | 'POTRERO' | 'OCUPACION' | 'MOVIMIENTO';
 export type OperacionRegistro = 'CREAR' | 'EDITAR' | 'ANULAR';
 
 //UN REGISTRO DE LA BANDEJA DE SALIDA (PLAN_GANADERO.md, SECCION 4.1). orden LO PONE DEXIE (AUTOINCREMENTAL)
@@ -287,6 +317,7 @@ export interface CambiosDTO {
   SALIDAS: any[];
   POTREROS?: PotreroDTO[];
   OCUPACIONES?: OcupacionDTO[];
+  MOVIMIENTOS?: MovimientoDTO[];
   RAZAS: RazaDTO[];
   VACUNAS: VacunaDTO[];
   CICLOS_ICA: any[];

@@ -34,6 +34,7 @@ export class HoyComponent implements OnInit, OnDestroy {
   //MENU 5 = HOY Y ALERTAS (LAS CALCULA LA BASE; EL CELULAR GUARDA LAS DE LA ULTIMA SINCRONIZACION)
   puedeVerAlertas = this.seguridadService.tienePermiso(5, 'listar');
   puedeVerIndicadores = this.seguridadService.tienePermiso(6, 'listar');
+  puedeVerPlata = this.seguridadService.tienePermiso(2, 'listar');
   alertas: AlertasGuardadas | null = null;
 
   //LO MAS URGENTE EN FRASES CORTAS PARA LA TARJETA "PARA HOY" (EL DETALLE ESTA EN /app/alertas)

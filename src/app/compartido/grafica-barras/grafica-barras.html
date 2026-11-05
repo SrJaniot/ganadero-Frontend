@@ -36,7 +36,7 @@
       <!-- BARRAS HORIZONTALES (POCAS CATEGORIAS: EL VALOR VA EN LA PUNTA DE CADA UNA) -->
       <svg [attr.viewBox]="'0 0 ' + ancho + ' ' + altoHorizontal" class="w-full h-auto block" role="img" [attr.aria-label]="titulo">
         @for (d of datos; track $index; let i = $index) {
-          <text x="0" [attr.y]="i * filaHorizontal + filaHorizontal / 2 + 4" font-size="13" fill="var(--texto)">{{ d.etiqueta.length > 13 ? d.etiqueta.slice(0, 12) + '…' : d.etiqueta }}</text>
+          <text x="0" [attr.y]="i * filaHorizontal + filaHorizontal / 2 + 4" font-size="13" fill="var(--texto)">{{ etiquetaCorta(d.etiqueta) }}</text>
           <path [attr.d]="caminoBarra(i)" fill="var(--primario)" [attr.opacity]="activo === null || activo === i ? 1 : 0.45" />
           <text [attr.x]="etiquetaHorizontal + largoBarra(d.valor) + 6" [attr.y]="i * filaHorizontal + filaHorizontal / 2 + 4" font-size="13" font-weight="700" fill="var(--texto)">{{ fmt(d.valor) }}{{ unidad ? ' ' + unidad : '' }}</text>
           <rect x="0" [attr.y]="i * filaHorizontal" [attr.width]="ancho" [attr.height]="filaHorizontal" fill="transparent" class="cursor-pointer"

@@ -1,0 +1,167 @@
+@if (!puede) {
+  <div class="card p-6 text-center max-w-xl mx-auto">
+    <app-icono nombre="candado" clase="w-10 h-10 mx-auto text-suave" />
+    <p class="font-bold text-lg mt-3 mb-1">La plata de la finca es solo del dueño</p>
+    <a routerLink="/app/hoy" class="btn-secundario mt-4">Volver</a>
+  </div>
+} @else {
+<div class="max-w-xl mx-auto grid grid-cols-1 gap-4">
+
+  <!-- ANOTAR -->
+  <div class="grid grid-cols-2 gap-3">
+    <button type="button" class="btn-primary min-h-[58px] text-lg" (click)="abrirAnotar('INGRESO')" data-accion="ingreso"><app-icono nombre="mas" clase="w-6 h-6" /> Ingreso</button>
+    <button type="button" class="btn-secundario min-h-[58px] text-lg" (click)="abrirAnotar('GASTO')" data-accion="gasto"><app-icono nombre="mas" clase="w-6 h-6" /> Gasto</button>
+  </div>
+  <p class="ayuda-finca m-0">
+    Anota lo que entra y lo que sale. La <b>venta de un animal</b> no se anota aquí: entra sola cuando registras su <b>salida</b> con el valor.
+    Solo tú (el dueño) ves esta pantalla. No necesitas señal para anotar.
+  </p>
+
+  <!-- PERIODO -->
+  <div class="flex flex-wrap gap-2" role="group" aria-label="Periodo">
+    @for (o of opciones; track o.valor) {
+      <button type="button" class="btn-secundario px-4 min-h-[44px]" [class.border-primario]="periodo === o.valor" [class.bg-tarjeta-alta]="periodo === o.valor"
+        [attr.aria-pressed]="periodo === o.valor" (click)="elegirPeriodo(o.valor)" [disabled]="consultando">{{ o.texto }}</button>
+    }
+  </div>
+
+  <!-- TOTALES (LOS CALCULA EL SERVIDOR) -->
+  <section class="card p-4">
+    <div class="flex items-start gap-3">
+      <div class="min-w-0 flex-1 leading-snug">
+        @if (!p) {
+          <p class="m-0 font-bold">{{ consultando ? 'Calculando...' : 'Todavía no hay totales en este celular' }}</p>
+          <p class="m-0 text-sm text-suave">Se calculan en el servidor: hace falta señal la primera vez.</p>
+        } @else {
+          <p class="m-0 font-bold">Del {{ fechaLegible(p.DESDE) }} al {{ fechaLegible(p.HASTA) }}</p>
+          <p class="m-0 text-sm text-suave">Calculados el {{ recibida }}{{ consultando ? ' · actualizando...' : '' }}</p>
+        }
+      </div>
+      <button type="button" class="btn-secundario px-4 shrink-0" (click)="consultar()" [disabled]="!estado.enLinea || consultando" aria-label="Actualizar los totales">
+        <app-icono nombre="sincronizar" clase="w-5 h-5" [class.animate-spin]="consultando" />
+      </button>
+    </div>
+    @if (p) {
+      <div class="grid grid-cols-2 gap-3 mt-3">
+        <div class="rounded-2xl bg-exito-fondo p-3"><p class="m-0 text-sm">Entró</p><p class="m-0 text-lg font-bold whitespace-nowrap" data-total="ingresos">{{ pesos(p.INGRESOS) }}</p></div>
+        <div class="rounded-2xl bg-peligro-fondo p-3"><p class="m-0 text-sm">Salió</p><p class="m-0 text-lg font-bold whitespace-nowrap" data-total="gastos">{{ pesos(p.GASTOS) }}</p></div>
+      </div>
+      <div class="rounded-2xl bg-tarjeta-alta p-3 mt-3">
+        <p class="m-0 text-sm">{{ p.SALDO >= 0 ? 'Quedó' : 'Faltó' }}</p>
+        <p class="m-0 text-3xl font-bold break-words" [class.text-peligro]="p.SALDO < 0" data-total="saldo">{{ pesos(p.SALDO) }}</p>
+        <p class="ayuda mt-1 mb-0">Lo que entró menos lo que salió en el periodo.</p>
+      </div>
+      @if (p.LECHE.PRECIO_LITRO) {
+        <p class="m-0 mt-3">Leche vendida: <b>{{ pesos(p.LECHE.VALOR) }}</b>; el litro salió a <b data-total="litro">{{ pesos(p.LECHE.PRECIO_LITRO) }}</b>
+          <span class="text-suave">(con las ventas en las que anotaste los litros)</span></p>
+      }
+    }
+  </section>
+  @if (errorConsulta) { <p class="aviso-error m-0" role="status">{{ errorConsulta }}</p> }
+  @if (resumenDeOtroPeriodo) { <p class="aviso-error m-0" role="status">Los totales de arriba son de otro periodo: se actualizan cuando haya señal.</p> }
+  @if (pendientesSinSubir) {
+    <p class="ayuda m-0">{{ pendientesSinSubir }} {{ pendientesSinSubir === 1 ? 'movimiento todavía no ha subido' : 'movimientos todavía no han subido' }}: entran en los totales cuando se sincronicen.</p>
+  }
+
+  @if (p && gastosPorCategoria.length) {
+    <section class="card p-4"><app-grafica-barras titulo="En qué se fue la plata" prefijo="$ " [datos]="gastosPorCategoria" [horizontal]="true" [etiquetaHorizontal]="140" /></section>
+  }
+  @if (p && ingresosPorCategoria.length) {
+    <section class="card p-4"><app-grafica-barras titulo="De dónde entró" prefijo="$ " [datos]="ingresosPorCategoria" [horizontal]="true" [etiquetaHorizontal]="140" /></section>
+  }
+  @if (p && p.POR_MES.length > 1) {
+    <section class="card p-4">
+      <h2 class="text-lg font-semibold m-0 mb-2">Mes a mes</h2>
+      <table class="tabla-finca w-full text-sm">
+        <thead><tr><th class="text-left">Mes</th><th class="text-right">Entró</th><th class="text-right">Salió</th><th class="text-right">Quedó</th></tr></thead>
+        <tbody>
+          @for (m of p.POR_MES; track m.MES) {
+            <tr><td>{{ mesLegible(m.MES) }}</td><td class="text-right">{{ pesos(m.INGRESOS) }}</td><td class="text-right">{{ pesos(m.GASTOS) }}</td>
+              <td class="text-right font-bold" [class.text-peligro]="m.SALDO < 0">{{ pesos(m.SALDO) }}</td></tr>
+          }
+        </tbody>
+      </table>
+    </section>
+  }
+
+  <!-- LO ANOTADO (COPIA DEL CELULAR) -->
+  <section class="card p-4">
+    <h2 class="text-lg font-semibold m-0">Lo anotado en el periodo</h2>
+    @if (!filas.length) {
+      <p class="text-suave mt-2 mb-0">Nada anotado todavía. Toca <b>Ingreso</b> o <b>Gasto</b> arriba.</p>
+    } @else {
+      <ul class="m-0 mt-2 p-0 list-none grid grid-cols-1 gap-2" data-lista>
+        @for (f of filas; track f.uuid) {
+          <li class="flex items-center gap-3 rounded-2xl bg-tarjeta-alta p-3">
+            <span class="min-w-0 flex-1 leading-snug">
+              <b class="block break-words">{{ f.titulo }}</b>
+              <span class="text-sm text-suave">{{ fechaLegible(f.fecha) }}{{ f.detalle ? ' · ' + f.detalle : '' }}</span>
+              @if (f.pendiente) { <span class="badge badge-warning ml-1">por subir</span> }
+            </span>
+            <span class="font-bold shrink-0" [class.text-exito]="f.tipo === 'INGRESO'" [class.text-peligro]="f.tipo === 'GASTO'">{{ f.tipo === 'INGRESO' ? '+' : '−' }}{{ pesos(f.valor) }}</span>
+            @if (f.movimiento) {
+              <button type="button" class="btn-icono shrink-0" (click)="porAnular = f" aria-label="Anular"><app-icono nombre="papelera" clase="w-5 h-5 text-peligro" /></button>
+            } @else {
+              <a [routerLink]="['/app/hato', f.uuidAnimal]" class="btn-icono shrink-0" aria-label="Ver el animal"><app-icono nombre="flecha" clase="w-5 h-5" /></a>
+            }
+          </li>
+        }
+      </ul>
+    }
+  </section>
+</div>
+
+<!-- ANOTAR UN INGRESO O UN GASTO -->
+@if (anotando) {
+  <div class="modal-centro" (click)="cerrarAnotar()">
+    <form class="modal-caja grid gap-4" (click)="$event.stopPropagation()" (ngSubmit)="guardar()" novalidate role="dialog" aria-modal="true" aria-label="Anotar">
+      <div class="flex items-center gap-3">
+        <h2 class="text-xl font-semibold flex-1 m-0">Anotar {{ tipo === 'INGRESO' ? 'un ingreso' : 'un gasto' }}</h2>
+        <button type="button" class="btn-icono" (click)="cerrarAnotar()" aria-label="Cerrar"><app-icono nombre="cerrar" clase="w-6 h-6" /></button>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <button type="button" [class]="tipo === 'INGRESO' ? 'btn-primary' : 'btn-secundario'" [attr.aria-pressed]="tipo === 'INGRESO'" (click)="elegirTipo('INGRESO')">Entró plata</button>
+        <button type="button" [class]="tipo === 'GASTO' ? 'btn-primary' : 'btn-secundario'" [attr.aria-pressed]="tipo === 'GASTO'" (click)="elegirTipo('GASTO')">Salió plata</button>
+      </div>
+      <div>
+        <p class="label-field mb-2">{{ tipo === 'INGRESO' ? '¿De dónde?' : '¿En qué?' }}</p>
+        <div class="flex flex-wrap gap-2">
+          @for (c of categoriasPorTipo[tipo]; track c) {
+            <button type="button" class="min-h-[48px]" [class]="categoria === c ? 'btn-primary' : 'btn-secundario'" [attr.aria-pressed]="categoria === c"
+              (click)="categoria = c; errorAnotar = ''">{{ nombreCategoria[c] }}</button>
+          }
+        </div>
+      </div>
+      <div>
+        <label class="label-field" for="valor">¿Cuánto?</label>
+        <div class="relative">
+          <span class="absolute left-5 top-1/2 -translate-y-1/2 text-2xl font-bold text-suave pointer-events-none">$</span>
+          <input id="valor" type="text" inputmode="numeric" class="input-field text-3xl font-bold min-h-[68px] pl-11" [ngModel]="valorTexto" (ngModelChange)="alEscribirValor($event)"
+            name="valor" autocomplete="off" placeholder="0" maxlength="15">
+        </div>
+      </div>
+      @if (categoria === 'VENTA_LECHE') {
+        <div>
+          <label class="label-field" for="litros">Litros vendidos (opcional)</label>
+          <input id="litros" type="text" inputmode="decimal" class="input-field" [(ngModel)]="litrosTexto" name="litros" autocomplete="off" maxlength="9" (input)="errorAnotar = ''">
+          <p class="ayuda mt-1 mb-0">Con los litros, la app saca a cómo te pagaron el litro.</p>
+        </div>
+      }
+      <div>
+        <label class="label-field" for="descripcion">{{ categoria === 'OTRO_INGRESO' || categoria === 'OTRO_GASTO' ? '¿Qué fue?' : 'Nota (opcional)' }}</label>
+        <input id="descripcion" type="text" class="input-field" [(ngModel)]="descripcion" name="descripcion" maxlength="200" autocomplete="off" (input)="errorAnotar = ''">
+      </div>
+      <div>
+        <label class="label-field" for="dia">¿Cuándo?</label>
+        <input id="dia" type="date" class="input-field" [max]="hoy" [(ngModel)]="dia" name="dia" (input)="errorAnotar = ''">
+      </div>
+      @if (errorAnotar) { <p class="aviso-error m-0" role="alert">{{ errorAnotar }}</p> }
+      <button type="submit" class="btn-primary text-lg min-h-[58px]" [disabled]="guardando">{{ guardando ? 'Guardando...' : 'Guardar' }}</button>
+    </form>
+  </div>
+}
+
+<app-confirmar-accion [abierto]="!!porAnular" titulo="Anular este movimiento"
+  [descripcion]="(porAnular?.titulo ?? '') + ' por ' + pesos(porAnular?.valor ?? 0) + '. Deja de contar en los totales.'"
+  textoBoton="Anular" [procesando]="anulando" (confirmar)="anular()" (cancelar)="porAnular = null" />
+}

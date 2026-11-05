@@ -42,6 +42,11 @@ const routes: Routes = [
         data: { titulo: 'Potreros' }
       },
       {
+        path: 'plata',
+        loadChildren: () => import('./pages/plata/plata.module').then(m => m.PlataModule),
+        data: { titulo: 'Plata de la finca' }
+      },
+      {
         path: 'pesar',
         loadChildren: () => import('./pages/pesar/pesar.module').then(m => m.PesarModule),
         data: { titulo: 'Pesé' }
