@@ -1,0 +1,24 @@
+<!-- MAPA DEL POTRERO (OpenStreetMap + Leaflet). OPCIONAL: SIN SEÑAL NO CARGAN LOS MOSAICOS -->
+<!-- EL CONTENEDOR SIEMPRE ESTA EN LA PAGINA (EL @ViewChild ES static) -->
+@if (sinSenal) {
+  <p class="aviso-error m-0 mb-2" role="status">Sin señal el mapa sale en blanco. El potrero funciona igual; el contorno se puede dibujar después.</p>
+}
+@if (errorCarga) {
+  <p class="aviso-error m-0 mb-2" role="status">No se pudo abrir el mapa.</p>
+}
+<div class="relative">
+  <div #contenedor class="rounded-2xl overflow-hidden border-2 border-borde z-0 bg-tarjeta-alta" [style.height]="alto" role="region" aria-label="Mapa del potrero"></div>
+  @if (editable) {
+    <button type="button" (click)="usarMiUbicacion()" [disabled]="ubicando" class="absolute top-3 right-3 z-[400] btn-secundario !min-h-[44px] !px-3 text-sm shadow-lg bg-tarjeta">
+      {{ ubicando ? 'Buscando...' : 'Estoy aquí' }}
+    </button>
+  }
+</div>
+@if (editable) {
+  <p class="ayuda mt-1 mb-0">Toca el mapa en cada esquina del potrero, en orden. Con 3 puntos o más se cierra solo.</p>
+  <div class="grid grid-cols-2 gap-2 mt-2">
+    <button type="button" class="btn-secundario" (click)="deshacer()" [disabled]="!contorno.length">Deshacer punto</button>
+    <button type="button" class="btn-secundario text-peligro" (click)="borrar()" [disabled]="!contorno.length">Borrar contorno</button>
+  </div>
+}
+@if (errorUbicacion) { <p class="texto-error">{{ errorUbicacion }}</p> }

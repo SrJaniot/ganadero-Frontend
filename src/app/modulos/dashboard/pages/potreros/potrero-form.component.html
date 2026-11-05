@@ -1,0 +1,71 @@
+@if (!puede) {
+  <div class="card p-6 text-center max-w-xl mx-auto">
+    <app-icono nombre="candado" clase="w-10 h-10 mx-auto text-suave" />
+    <p class="font-bold text-lg mt-3 mb-1">Tu rol no puede {{ editar ? 'editar' : 'crear' }} potreros</p>
+    <p class="text-suave m-0">Pídeselo al dueño de la finca.</p>
+    <a routerLink="/app/potreros" class="btn-secundario mt-4">Volver</a>
+  </div>
+} @else if (cargando) {
+  <div class="card p-6 text-suave text-center max-w-xl mx-auto">Buscando en el celular...</div>
+} @else if (noExiste) {
+  <div class="card p-6 text-center max-w-xl mx-auto">
+    <p class="font-bold text-lg m-0">Ese potrero no está en este celular</p>
+    <a routerLink="/app/potreros" class="btn-secundario mt-4">Volver a los potreros</a>
+  </div>
+} @else {
+  <form class="max-w-xl mx-auto grid gap-4" [formGroup]="form" (ngSubmit)="guardar()" novalidate>
+    <a routerLink="/app/potreros" class="btn-secundario self-start"><app-icono nombre="pasto" clase="w-5 h-5" /> Volver a los potreros</a>
+
+    <div class="card p-4 grid gap-4">
+      <div>
+        <label class="label-field" for="nombre">Nombre del potrero</label>
+        <input id="nombre" type="text" class="input-field text-lg" formControlName="nombre" maxlength="60" autocomplete="off" placeholder="Ej: La Loma"
+          [class.input-error]="errores.nombre" (input)="errores.nombre = ''">
+        @if (errores.nombre) { <p class="texto-error">{{ errores.nombre }}</p> }
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="label-field" for="area">Área (opcional)</label>
+          <div class="relative">
+            <input id="area" type="text" inputmode="decimal" class="input-field text-lg pr-12" formControlName="area" maxlength="9" autocomplete="off" placeholder="0"
+              [class.input-error]="errores.area" (input)="errores.area = ''">
+            <span class="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-suave pointer-events-none">ha</span>
+          </div>
+        </div>
+        <div>
+          <label class="label-field" for="dias">Días de descanso</label>
+          <input id="dias" type="text" inputmode="numeric" class="input-field text-lg" formControlName="dias" maxlength="3" autocomplete="off"
+            [class.input-error]="errores.dias" (input)="errores.dias = ''">
+        </div>
+      </div>
+      @if (errores.area) { <p class="texto-error m-0">{{ errores.area }}</p> }
+      @if (errores.dias) { <p class="texto-error m-0">{{ errores.dias }}</p> } @else {
+        <p class="ayuda m-0">Los días que el pasto necesita para recuperarse antes de volver a meter un lote. Si no sabes, deja 30.</p>
+      }
+    </div>
+
+    <!-- EL MAPA ES OPCIONAL -->
+    <div class="card p-4 grid gap-3">
+      <div class="flex items-center gap-3">
+        <h2 class="text-lg font-semibold flex-1 m-0 flex items-center gap-2"><app-icono nombre="mapa" clase="w-6 h-6" /> Contorno en el mapa</h2>
+        @if (!verMapa) { <button type="button" class="btn-secundario" (click)="verMapa = true" data-accion="ver-mapa">Dibujar</button> }
+      </div>
+      @if (!verMapa) {
+        <p class="ayuda m-0">Opcional. Con señal puedes marcar las esquinas del potrero en el mapa y la app calcula el área.</p>
+      } @else {
+        <app-mapa-potrero [contorno]="contorno" [vecinos]="vecinos" [editable]="true" [nombre]="form.controls.nombre.value" (contornoChange)="alCambiarContorno($event)" />
+        @if (errores.contorno) { <p class="texto-error m-0">{{ errores.contorno }}</p> }
+        @if (areaDibujada) {
+          <div class="flex items-center gap-3 rounded-2xl bg-tarjeta-alta p-3">
+            <span class="flex-1">El contorno mide unas <b>{{ areaDibujada.toLocaleString('es-CO') }} ha</b></span>
+            <button type="button" class="btn-secundario" (click)="usarAreaDibujada()">Usar esta área</button>
+          </div>
+        }
+      }
+    </div>
+
+    <button type="submit" class="btn-primary text-lg min-h-[58px]" [disabled]="guardando">
+      {{ guardando ? 'Guardando...' : editar ? 'Guardar cambios' : 'Crear potrero' }}
+    </button>
+  </form>
+}

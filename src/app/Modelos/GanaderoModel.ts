@@ -194,6 +194,30 @@ export interface SalidaDTO {
   _pendiente?: boolean;
 }
 
+//POTREROS Y ROTACION (FASE 5A) -----------------------------------------------------------------------------------------------------
+export interface PotreroDTO {
+  UUID_POTRERO: string;
+  NOM_POTRERO: string;
+  AREA_POTRERO: number | string | null;      //HECTAREAS
+  DIAS_DESCANSO_POTRERO: number;
+  CONTORNO_POTRERO: [number, number][] | null; //[LATITUD, LONGITUD] DIBUJADOS EN EL MAPA (OPCIONAL)
+  ESTADO_POTRERO: 'ACTIVO' | 'ANULADO';
+  _pendiente?: boolean;
+}
+
+//UN LOTE QUE ENTRO A UN POTRERO (FECHA_EVENTO) Y, SI YA SALIO, CUANDO (FECHA_SALIDA_OCUPACION)
+export interface OcupacionDTO {
+  UUID_OCUPACION: string;
+  UUID_POTRERO: string;
+  UUID_LOTE: string;
+  FECHA_EVENTO: string;
+  FECHA_SALIDA_OCUPACION: string | null;
+  OBSERVACION_OCUPACION: string | null;
+  ESTADO_OCUPACION: 'ACTIVO' | 'ANULADO';
+  USUARIO_CREACION?: string;
+  _pendiente?: boolean;
+}
+
 //TODO LO QUE LE HA PASADO A UN ANIMAL EN EL CELULAR (LA FICHA ARMA CON ESTO SU LINEA DE TIEMPO, SIN SEÑAL)
 export interface EventosAnimal {
   pesajes: PesajeDTO[];
@@ -223,7 +247,7 @@ export interface AlertasGuardadas { alertas: AlertasDTO; recibidas: string; }
 export interface RespuestaServerAlertas extends RespuestaServer { DATOS?: AlertasDTO }
 
 //SINCRONIZACION ---------------------------------------------------------------------------------------------------------------------
-export type TipoRegistro = 'LOTE' | 'ANIMAL' | 'PESAJE' | 'VACUNACION' | 'SERVICIO' | 'PALPACION' | 'PARTO' | 'ORDENO' | 'SALIDA';
+export type TipoRegistro = 'LOTE' | 'ANIMAL' | 'PESAJE' | 'VACUNACION' | 'SERVICIO' | 'PALPACION' | 'PARTO' | 'ORDENO' | 'SALIDA' | 'POTRERO' | 'OCUPACION';
 export type OperacionRegistro = 'CREAR' | 'EDITAR' | 'ANULAR';
 
 //UN REGISTRO DE LA BANDEJA DE SALIDA (PLAN_GANADERO.md, SECCION 4.1). orden LO PONE DEXIE (AUTOINCREMENTAL)
@@ -261,6 +285,8 @@ export interface CambiosDTO {
   PARTOS: any[];
   ORDENOS: any[];
   SALIDAS: any[];
+  POTREROS?: PotreroDTO[];
+  OCUPACIONES?: OcupacionDTO[];
   RAZAS: RazaDTO[];
   VACUNAS: VacunaDTO[];
   CICLOS_ICA: any[];

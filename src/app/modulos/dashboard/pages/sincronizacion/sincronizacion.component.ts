@@ -10,7 +10,7 @@ import { fechaHoraLocalLegible } from '../hato/hato-vista';
 
 const ICONO_POR_TIPO: Record<TipoRegistro, string> = {
   LOTE: 'finca', ANIMAL: 'vaca', PESAJE: 'pesa', VACUNACION: 'jeringa', SERVICIO: 'corazon',
-  PALPACION: 'corazon', PARTO: 'biberon', ORDENO: 'gota', SALIDA: 'salida',
+  PALPACION: 'corazon', PARTO: 'biberon', ORDENO: 'gota', SALIDA: 'salida', POTRERO: 'pasto', OCUPACION: 'mapa',
 };
 
 interface RegistroVista {

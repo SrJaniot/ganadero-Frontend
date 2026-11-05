@@ -1,0 +1,77 @@
+<div class="max-w-xl mx-auto grid gap-4">
+  <a routerLink="/app/potreros" class="btn-secundario self-start"><app-icono nombre="pasto" clase="w-5 h-5" /> Volver a los potreros</a>
+
+  @if (cargando) {
+    <div class="card p-6 text-suave text-center">Buscando el potrero en el celular...</div>
+  } @else if (!potrero) {
+    <div class="card p-6 text-center">
+      <p class="font-bold text-lg m-0">Ese potrero no está en este celular</p>
+      <p class="text-suave mt-1 mb-0">Puede que lo hayan anulado. Sincroniza para ver lo último.</p>
+    </div>
+  } @else {
+    <!-- ESTADO DE HOY -->
+    <section class="card p-4">
+      <h2 class="text-2xl font-bold m-0 break-words">{{ potrero.NOM_POTRERO }}</h2>
+      <p class="m-0 text-suave">{{ area }} · descanso de {{ potrero.DIAS_DESCANSO_POTRERO }} días</p>
+      <p class="mt-3 mb-0 text-lg font-semibold" [class.text-exito]="hoy?.estado === 'LISTO'" data-estado>{{ textoEstado }}</p>
+      @if (hoy?.lotes?.length) {
+        <p class="m-0">Adentro: <b>{{ nombresLotes }}</b></p>
+      }
+      @if (potrero._pendiente) { <span class="badge badge-warning mt-2"><app-icono nombre="celular" clase="w-3.5 h-3.5" /> cambios por subir</span> }
+      <div class="grid grid-cols-2 gap-2 mt-4">
+        @if (puedeMover) {
+          <a routerLink="/app/potreros" [queryParams]="{ mover: potrero.UUID_POTRERO }" class="btn-primary" [class.col-span-2]="!esDuenio">Meter un lote</a>
+        }
+        @if (esDuenio) {
+          <a [routerLink]="['/app/potreros', potrero.UUID_POTRERO, 'editar']" class="btn-secundario"><app-icono nombre="lapiz" clase="w-5 h-5" /> Editar</a>
+        }
+      </div>
+    </section>
+
+    <!-- MAPA (SI SE DIBUJO) -->
+    @if (potrero.CONTORNO_POTRERO?.length) {
+      <section class="card p-4">
+        <h3 class="text-lg font-semibold m-0 mb-2 flex items-center gap-2"><app-icono nombre="mapa" clase="w-6 h-6" /> En el mapa</h3>
+        <app-mapa-potrero [contorno]="potrero.CONTORNO_POTRERO!" [vecinos]="vecinos" [nombre]="potrero.NOM_POTRERO" alto="16rem" />
+      </section>
+    }
+
+    <!-- HISTORIA DEL POTRERO -->
+    <section class="card p-4">
+      <h3 class="text-lg font-semibold m-0">Lotes que han pasado</h3>
+      <p class="ayuda mt-0.5 mb-2">Del más reciente al más viejo. Los días de cada fila son los que estuvo el lote adentro.</p>
+      @if (!historial.length) {
+        <p class="text-suave m-0">Todavía no ha entrado ningún lote.</p>
+      } @else {
+        <ul class="m-0 p-0 list-none grid gap-2">
+          @for (m of historial; track m.ocupacion.UUID_OCUPACION) {
+            <li class="flex items-center gap-3 rounded-2xl bg-tarjeta-alta p-3">
+              <span class="min-w-0 flex-1 leading-snug">
+                <b class="block truncate">{{ m.nomLote }}</b>
+                <span class="text-sm">{{ fechaLegible(m.entrada) }} → {{ m.salida ? fechaLegible(m.salida) : 'sigue adentro' }} · {{ m.dias }} {{ m.dias === 1 ? 'día' : 'días' }}</span>
+                @if (m.pendiente) { <span class="badge badge-warning ml-1">por subir</span> }
+              </span>
+              @if (esDuenio && m.esUltimoDelLote) {
+                <button type="button" class="btn-secundario px-3 min-h-[44px] text-peligro shrink-0" (click)="porAnularMovimiento = m">Anular</button>
+              }
+            </li>
+          }
+        </ul>
+      }
+    </section>
+
+    @if (esDuenio) {
+      <button type="button" class="btn-secundario text-peligro" (click)="porAnularPotrero = true" [disabled]="hoy?.estado === 'OCUPADO'">
+        <app-icono nombre="papelera" clase="w-5 h-5" /> Anular el potrero
+      </button>
+      @if (hoy?.estado === 'OCUPADO') { <p class="ayuda m-0 -mt-2">Para anularlo, primero saca los lotes que tiene adentro.</p> }
+    }
+  }
+</div>
+
+<app-confirmar-accion [abierto]="!!porAnularMovimiento" titulo="Anular este movimiento"
+  [descripcion]="'El lote ' + (porAnularMovimiento?.nomLote ?? '') + ' vuelve al potrero donde estaba antes (si estaba en uno). Sirve para corregir un error.'"
+  textoBoton="Anular" [procesando]="procesando" (confirmar)="anularMovimiento()" (cancelar)="porAnularMovimiento = null" />
+<app-confirmar-accion [abierto]="porAnularPotrero" titulo="Anular el potrero"
+  [descripcion]="'El potrero ' + (potrero?.NOM_POTRERO ?? '') + ' deja de salir en la lista. Su historia se conserva.'"
+  textoBoton="Anular" [procesando]="procesando" (confirmar)="anularPotrero()" (cancelar)="porAnularPotrero = false" />

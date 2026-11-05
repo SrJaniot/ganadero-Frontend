@@ -1,0 +1,160 @@
+<div class="max-w-xl mx-auto grid gap-4">
+  <a routerLink="/app/hato" class="btn-secundario self-start"><app-icono nombre="vaca" clase="w-5 h-5" /> Volver al hato</a>
+
+  <p class="ayuda-finca m-0">
+    Anota en qué <b>potrero</b> está cada <b>lote</b>. Cuando un lote sale, el potrero empieza a <b>descansar</b>; cuando completa sus días
+    de descanso sale <b>«Listo para entrar»</b>. Los días se cuentan desde que salió el último lote. No necesitas señal.
+  </p>
+
+  @if (puedeMover) {
+    <div class="grid grid-cols-2 gap-3">
+      <button type="button" class="btn-primary min-h-[58px] text-lg" (click)="abrirMover()" [disabled]="!lotes.length || !potreros.length" data-accion="mover">
+        <app-icono nombre="flecha" clase="w-6 h-6" /> Mover un lote
+      </button>
+      <a routerLink="/app/potreros/nuevo" class="btn-secundario min-h-[58px] text-lg"><app-icono nombre="mas" clase="w-6 h-6" /> Potrero nuevo</a>
+    </div>
+    @if (potreros.length && !lotes.length) {
+      <p class="ayuda m-0">Para mover animales primero crea un lote en <a routerLink="/app/hato/lotes" class="font-bold text-primario-texto">Lotes</a>.</p>
+    }
+  }
+
+  @if (cargando) {
+    <div class="card p-6 text-suave text-center">Buscando los potreros en el celular...</div>
+  } @else if (errorCarga) {
+    <div class="aviso-error">No se pudieron leer los potreros del celular. Cierra la app y vuelve a abrirla.</div>
+  } @else if (potreros.length === 0) {
+    <div class="card p-6 text-center">
+      <app-icono nombre="pasto" clase="w-12 h-12 mx-auto text-suave" />
+      <p class="text-lg font-bold mt-3 mb-1">Todavía no hay potreros</p>
+      <p class="text-suave m-0">
+        @if (puedeMover) { Toca <b>Potrero nuevo</b>: con el nombre basta. El área y el mapa son opcionales. } @else { Cuando el dueño cree los potreros y sincronices, aparecen aquí. }
+      </p>
+    </div>
+  } @else {
+    <p class="ayuda m-0" data-resumen>{{ resumen }}</p>
+    <div class="grid gap-3">
+      @for (p of potreros; track p.uuid) {
+        <div class="card p-2" [attr.data-potrero]="p.nombre">
+          <a [routerLink]="['/app/potreros', p.uuid]" class="flex items-start gap-3 p-2 rounded-2xl no-underline text-texto hover:bg-tarjeta-alta">
+            <span class="grid place-items-center w-14 h-14 rounded-2xl shrink-0"
+              [ngClass]="{ 'bg-tarjeta-alta text-primario-texto': p.hoy.estado === 'OCUPADO', 'bg-exito-fondo text-exito': p.hoy.estado === 'LISTO',
+                           'bg-aviso-fondo text-aviso': p.hoy.estado === 'DESCANSANDO', 'bg-tarjeta-alta text-suave': p.hoy.estado === 'SIN_USO' }">
+              <app-icono [nombre]="p.hoy.estado === 'OCUPADO' ? 'vaca' : p.hoy.estado === 'LISTO' ? 'check' : 'pasto'" clase="w-8 h-8" />
+            </span>
+            <span class="min-w-0 flex-1 leading-snug">
+              <span class="flex flex-wrap items-center gap-2">
+                <span class="font-bold text-lg break-words">{{ p.nombre }}</span>
+                @if (p.area) { <span class="text-sm text-suave">{{ p.area.toLocaleString('es-CO') }} ha</span> }
+                @if (p.pendiente) { <span class="badge badge-warning"><app-icono nombre="celular" clase="w-3.5 h-3.5" /> por subir</span> }
+              </span>
+              <span class="block font-semibold" [class.text-exito]="p.hoy.estado === 'LISTO'" data-estado>{{ textoEstado(p) }}</span>
+              @if (p.hoy.estado === 'DESCANSANDO') {
+                <!-- BARRA DEL DESCANSO: CUANTO LLEVA DE LOS DIAS QUE NECESITA -->
+                <span class="block h-2 rounded-full bg-tarjeta-alta mt-1.5 overflow-hidden" role="img" [attr.aria-label]="avance(p) + ' % del descanso'">
+                  <span class="block h-full rounded-full bg-aviso-relleno" [style.width.%]="avance(p)"></span>
+                </span>
+              }
+            </span>
+            <app-icono nombre="flecha" clase="w-5 h-5 text-suave shrink-0 mt-1" />
+          </a>
+          @if (p.hoy.lotes.length) {
+            <ul class="m-0 px-2 pb-2 list-none grid gap-2">
+              @for (l of p.hoy.lotes; track l.uuidOcupacion) {
+                <li class="flex items-center gap-3 rounded-2xl bg-tarjeta-alta p-3">
+                  <span class="min-w-0 flex-1 leading-snug">
+                    <b class="block truncate">{{ l.nomLote }}</b>
+                    <span class="text-sm text-suave">Entró el {{ fechaLegible(l.entrada) }} · {{ l.dias }} {{ l.dias === 1 ? 'día' : 'días' }}</span>
+                  </span>
+                  @if (puedeMover) {
+                    <button type="button" class="btn-secundario px-4 min-h-[44px] shrink-0" (click)="abrirMover(null, l.uuidLote)">Mover</button>
+                    <button type="button" class="btn-secundario px-4 min-h-[44px] shrink-0" (click)="abrirSacar(p, l)">Sacar</button>
+                  }
+                </li>
+              }
+            </ul>
+          } @else if (puedeMover && lotes.length) {
+            <div class="px-2 pb-2">
+              <button type="button" class="btn-secundario w-full" (click)="abrirMover(p.uuid)">Meter un lote aquí</button>
+            </div>
+          }
+        </div>
+      }
+    </div>
+
+    @if (lotesSinPotrero.length) {
+      <section class="card p-4">
+        <h2 class="text-lg font-semibold m-0">Lotes sin potrero</h2>
+        <p class="ayuda mt-0.5 mb-2">No están en ningún potrero (en el corral, recién creados o los sacaron).</p>
+        <div class="flex flex-wrap gap-2">
+          @for (l of lotesSinPotrero; track l.UUID_LOTE) {
+            @if (puedeMover) {
+              <button type="button" class="btn-secundario" (click)="abrirMover(null, l.UUID_LOTE)">{{ l.NOM_LOTE }}</button>
+            } @else {
+              <span class="badge badge-neutral">{{ l.NOM_LOTE }}</span>
+            }
+          }
+        </div>
+      </section>
+    }
+  }
+</div>
+
+<!-- MOVER UN LOTE -->
+@if (moviendo) {
+  <div class="modal-centro" (click)="cerrarMover()">
+    <form class="modal-caja grid gap-4" (click)="$event.stopPropagation()" (ngSubmit)="guardarMover()" novalidate role="dialog" aria-modal="true" aria-label="Mover un lote">
+      <div class="flex items-center gap-3">
+        <h2 class="text-xl font-semibold flex-1 m-0">Mover un lote</h2>
+        <button type="button" class="btn-icono" (click)="cerrarMover()" aria-label="Cerrar"><app-icono nombre="cerrar" clase="w-6 h-6" /></button>
+      </div>
+      <div>
+        <p class="label-field mb-2">¿Qué lote?</p>
+        <div class="flex flex-wrap gap-2">
+          @for (l of lotes; track l.UUID_LOTE) {
+            <button type="button" class="min-h-[48px]" [class]="moverLote === l.UUID_LOTE ? 'btn-primary' : 'btn-secundario'" [attr.aria-pressed]="moverLote === l.UUID_LOTE"
+              (click)="moverLote = l.UUID_LOTE; errorMover = ''">{{ l.NOM_LOTE }}</button>
+          }
+        </div>
+        @if (moverLote) {
+          <p class="ayuda mt-1 mb-0">Hoy está en: <b>{{ potreroDeLote(moverLote)?.nombre ?? 'ningún potrero' }}</b></p>
+        }
+      </div>
+      <div>
+        <p class="label-field mb-2">¿A qué potrero entra?</p>
+        <div class="grid gap-2">
+          @for (p of potreros; track p.uuid) {
+            <button type="button" class="text-left min-h-[52px] justify-start" [class]="moverPotrero === p.uuid ? 'btn-primary' : 'btn-secundario'"
+              [attr.aria-pressed]="moverPotrero === p.uuid" (click)="moverPotrero = p.uuid; errorMover = ''">
+              <span class="min-w-0 flex-1 leading-snug"><b class="block">{{ p.nombre }}</b><span class="text-sm opacity-90">{{ textoEstado(p) }}</span></span>
+            </button>
+          }
+        </div>
+      </div>
+      <div>
+        <label class="label-field" for="moverDia">¿Cuándo entró?</label>
+        <input id="moverDia" type="date" class="input-field" [max]="hoy" [(ngModel)]="moverDia" name="moverDia" (input)="errorMover = ''">
+      </div>
+      @if (errorMover) { <p class="aviso-error m-0" role="alert">{{ errorMover }}</p> }
+      <button type="submit" class="btn-primary text-lg min-h-[58px]" [disabled]="guardando">{{ guardando ? 'Guardando...' : 'Guardar' }}</button>
+    </form>
+  </div>
+}
+
+<!-- SACAR UN LOTE -->
+@if (sacando) {
+  <div class="modal-centro" (click)="cerrarSacar()">
+    <form class="modal-caja grid gap-4" (click)="$event.stopPropagation()" (ngSubmit)="guardarSacar()" novalidate role="dialog" aria-modal="true" aria-label="Sacar un lote">
+      <div class="flex items-center gap-3">
+        <h2 class="text-xl font-semibold flex-1 m-0">Sacar a {{ sacando.nomLote }}</h2>
+        <button type="button" class="btn-icono" (click)="cerrarSacar()" aria-label="Cerrar"><app-icono nombre="cerrar" clase="w-6 h-6" /></button>
+      </div>
+      <p class="ayuda m-0">El lote sale de <b>{{ sacando.nomPotrero }}</b> y queda sin potrero. Si lo pasas a otro potrero, mejor usa <b>Mover</b>.</p>
+      <div>
+        <label class="label-field" for="sacarDia">¿Cuándo salió?</label>
+        <input id="sacarDia" type="date" class="input-field" [max]="hoy" [(ngModel)]="sacarDia" name="sacarDia" (input)="errorSacar = ''">
+      </div>
+      @if (errorSacar) { <p class="aviso-error m-0" role="alert">{{ errorSacar }}</p> }
+      <button type="submit" class="btn-primary text-lg min-h-[58px]" [disabled]="guardando">{{ guardando ? 'Guardando...' : 'Sacar del potrero' }}</button>
+    </form>
+  </div>
+}

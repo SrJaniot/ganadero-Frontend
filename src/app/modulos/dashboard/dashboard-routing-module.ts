@@ -37,6 +37,11 @@ const routes: Routes = [
         data: { titulo: 'Hato' }
       },
       {
+        path: 'potreros',
+        loadChildren: () => import('./pages/potreros/potreros.module').then(m => m.PotrerosModule),
+        data: { titulo: 'Potreros' }
+      },
+      {
         path: 'pesar',
         loadChildren: () => import('./pages/pesar/pesar.module').then(m => m.PesarModule),
         data: { titulo: 'Pesé' }

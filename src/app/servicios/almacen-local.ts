@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import Dexie, { liveQuery, Table } from 'dexie';
 import { from, Observable } from 'rxjs';
-import { AnimalDTO, CambiosDTO, EventosAnimal, LoteDTO, OrdenoDTO, PalpacionDTO, PartoDTO, PesajeDTO, RazaDTO, RegistroBandeja, ResultadoRegistro, SalidaDTO, ServicioDTO, TipoRegistro, VacunacionDTO, VacunaDTO } from '../Modelos/GanaderoModel';
+import { AnimalDTO, CambiosDTO, EventosAnimal, LoteDTO, OcupacionDTO, OrdenoDTO, PalpacionDTO, PartoDTO, PotreroDTO, PesajeDTO, RazaDTO, RegistroBandeja, ResultadoRegistro, SalidaDTO, ServicioDTO, TipoRegistro, VacunacionDTO, VacunaDTO } from '../Modelos/GanaderoModel';
 
 // ALMACEN LOCAL DE GANADERO (DEXIE SOBRE INDEXEDDB). ES EL UNICO ARCHIVO QUE TOCA INDEXEDDB (DECISION DEL 22/10/2026)
 // UNA BASE POR FINCA ("ganadero-finca-<ID_FINCA>") CON DOS PARTES:
@@ -20,6 +20,8 @@ const TABLA_POR_TIPO: Record<TipoRegistro, { tabla: string; llave: string }> = {
   PARTO: { tabla: 'partos', llave: 'UUID_PARTO' },
   ORDENO: { tabla: 'ordenos', llave: 'UUID_ORDENO' },
   SALIDA: { tabla: 'salidas', llave: 'UUID_SALIDA' },
+  POTRERO: { tabla: 'potreros', llave: 'UUID_POTRERO' },
+  OCUPACION: { tabla: 'ocupaciones', llave: 'UUID_OCUPACION' },
 };
 
 const PREFIJO_BASE = 'ganadero-finca-';
@@ -41,6 +43,8 @@ class BaseFinca extends Dexie {
   bandeja!: Table<RegistroBandeja, number>;
   meta!: Table<{ clave: string; valor: any }, string>;
   fotos!: Table<{ uuid: string; archivo: string; foto: Blob }, string>;
+  potreros!: Table<PotreroDTO, string>;
+  ocupaciones!: Table<OcupacionDTO, string>;
 
   constructor(nombre: string) {
     super(nombre);
@@ -65,6 +69,11 @@ class BaseFinca extends Dexie {
     //VERSION 2 (FASE 1): FOTOS DE LOS ANIMALES GUARDADAS EN EL CELULAR PARA VERLAS SIN SEÑAL (archivo = NOMBRE EN EL SERVIDOR)
     this.version(2).stores({
       fotos: 'uuid',
+    });
+    //VERSION 3 (FASE 5A): POTREROS Y LA ROTACION DE LOS LOTES
+    this.version(3).stores({
+      potreros: 'UUID_POTRERO',
+      ocupaciones: 'UUID_OCUPACION, UUID_LOTE, UUID_POTRERO',
     });
   }
 }
@@ -137,6 +146,49 @@ export class AlmacenLocalService {
   //NO VAN A LA BANDEJA: AL SINCRONIZAR, LA BAJADA TRAE LA FICHA OFICIAL
   actualizarAnimalLocal(uuid: string, cambios: Partial<AnimalDTO>): Promise<number> {
     return this.db.animales.update(uuid, cambios);
+  }
+
+  //---------------------------------------------POTREROS (FASE 5A)----------------------------------------------------------------
+
+  observarPotreros(): Observable<{ potreros: PotreroDTO[]; ocupaciones: OcupacionDTO[]; lotes: LoteDTO[] }> {
+    const db = this.db;
+    return from(liveQuery(async () => ({
+      potreros: (await db.potreros.toArray()).filter(p => p.ESTADO_POTRERO === 'ACTIVO'),
+      ocupaciones: (await db.ocupaciones.toArray()).filter(o => o.ESTADO_OCUPACION === 'ACTIVO'),
+      lotes: (await db.lotes.toArray()).filter(l => l.ESTADO_LOTE === 'ACTIVO'),
+    })));
+  }
+
+  //METER UN LOTE A UN POTRERO: LA OCUPACION NUEVA, LA ANTERIOR DEL LOTE CERRADA CON LA MISMA FECHA (COMO FUN_ENTRAR_LOTE_POTRERO_JSON)
+  //Y UN SOLO REGISTRO EN LA BANDEJA, TODO EN UNA TRANSACCION. EL CIERRE NO VA A LA BANDEJA: LO HACE LA BASE AL SUBIR
+  async entrarLoteConBandeja(ocupacion: OcupacionDTO, registro: Omit<RegistroBandeja, 'orden' | 'estado' | 'fechaCreacion' | 'tipo'>): Promise<void> {
+    const db = this.db;
+    await db.transaction('rw', db.ocupaciones, db.bandeja, async () => {
+      await db.ocupaciones.where('UUID_LOTE').equals(ocupacion.UUID_LOTE)
+        .filter(o => o.ESTADO_OCUPACION === 'ACTIVO' && !o.FECHA_SALIDA_OCUPACION)
+        .modify({ FECHA_SALIDA_OCUPACION: ocupacion.FECHA_EVENTO });
+      await db.ocupaciones.put({ ...ocupacion, _pendiente: true });
+      await db.bandeja.add({ ...registro, tipo: 'OCUPACION', estado: 'PENDIENTE', fechaCreacion: new Date().toISOString() });
+    });
+  }
+
+  //ANULAR LA ULTIMA OCUPACION DE UN LOTE: SI CERRO LA ANTERIOR, ESA SE VUELVE A ABRIR (COMO FUN_ANULAR_OCUPACION_JSON)
+  async anularOcupacionConBandeja(ocupacion: OcupacionDTO, registro: Omit<RegistroBandeja, 'orden' | 'estado' | 'fechaCreacion' | 'tipo' | 'uuid'>): Promise<void> {
+    const db = this.db;
+    await db.transaction('rw', db.ocupaciones, db.bandeja, async () => {
+      await db.ocupaciones.update(ocupacion.UUID_OCUPACION, { ESTADO_OCUPACION: 'ANULADO', _pendiente: true });
+      await db.ocupaciones.where('UUID_LOTE').equals(ocupacion.UUID_LOTE)
+        .filter(o => o.ESTADO_OCUPACION === 'ACTIVO' && o.FECHA_SALIDA_OCUPACION === ocupacion.FECHA_EVENTO)
+        .modify({ FECHA_SALIDA_OCUPACION: null });
+      await db.bandeja.add({ ...registro, uuid: ocupacion.UUID_OCUPACION, tipo: 'OCUPACION', estado: 'PENDIENTE', fechaCreacion: new Date().toISOString() });
+    });
+  }
+
+  //AL ANULAR UN LOTE, SI ESTABA EN UN POTRERO SALE HOY (LA BASE HACE LO MISMO EN FUN_ANULAR_LOTE_JSON)
+  async sacarLoteDePotreros(uuidLote: string, ahora: string): Promise<void> {
+    await this.db.ocupaciones.where('UUID_LOTE').equals(uuidLote)
+      .filter(o => o.ESTADO_OCUPACION === 'ACTIVO' && !o.FECHA_SALIDA_OCUPACION)
+      .modify({ FECHA_SALIDA_OCUPACION: ahora });
   }
 
   //AL ANULAR UN LOTE SIN SEÑAL, SUS ANIMALES QUEDAN SIN LOTE EN EL CELULAR (LA BASE HACE LO MISMO AL SUBIR)
@@ -217,7 +269,8 @@ export class AlmacenLocalService {
         }
       }
     });
-    if (registro.operacion !== 'CREAR') {
+    //UNA OCUPACION RECHAZADA TAMBIEN CAMBIO LA OCUPACION ANTERIOR DEL LOTE EN EL CELULAR: SE BAJA TODO DE NUEVO
+    if (registro.operacion !== 'CREAR' || registro.tipo === 'OCUPACION') {
       await db.meta.delete('MARCA');
     }
   }
@@ -232,6 +285,7 @@ export class AlmacenLocalService {
       ['lotes', cambios.LOTES], ['animales', cambios.ANIMALES], ['pesajes', cambios.PESAJES],
       ['vacunaciones', cambios.VACUNACIONES], ['servicios', cambios.SERVICIOS], ['palpaciones', cambios.PALPACIONES],
       ['partos', cambios.PARTOS], ['ordenos', cambios.ORDENOS], ['salidas', cambios.SALIDAS],
+      ['potreros', cambios.POTREROS ?? []], ['ocupaciones', cambios.OCUPACIONES ?? []],
       ['razas', cambios.RAZAS], ['vacunas', cambios.VACUNAS], ['ciclos', cambios.CICLOS_ICA], ['personas', cambios.PERSONAS],
     ];
     await db.transaction('rw', [...tablasFinca.map(([t]) => db.table(t)), db.meta], async () => {

@@ -154,12 +154,13 @@ export class HatoService {
     this.sincronizacion.programar();
   }
 
-  //SUS ANIMALES QUEDAN SIN LOTE (EN EL CELULAR YA; EN EL SERVIDOR LO HACE FUN_ANULAR_LOTE_JSON)
+  //SUS ANIMALES QUEDAN SIN LOTE Y, SI ESTABA EN UN POTRERO, SALE HOY (EN EL CELULAR YA; EN EL SERVIDOR LO HACE FUN_ANULAR_LOTE_JSON)
   async anularLote(uuid: string, nombre: string): Promise<void> {
     await this.almacenLocal.cambiarConBandeja('LOTE', uuid, { ESTADO_LOTE: 'ANULADO' }, {
       operacion: 'ANULAR', datos: {}, descripcion: `Anular el lote ${nombre}`,
     });
     await this.almacenLocal.quitarLoteDeAnimales(uuid);
+    await this.almacenLocal.sacarLoteDePotreros(uuid, ahoraLocal());
     this.sincronizacion.programar();
   }
 
