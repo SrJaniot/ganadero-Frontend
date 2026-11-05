@@ -14,6 +14,15 @@
       </div>
     </div>
 
+    <!-- ADMINISTRADOR DE LA PLATAFORMA (FASE 5D) -->
+    @if (esAdministrador) {
+      <a routerLink="/admin/whatsapp" class="card p-4 mb-4 flex items-center gap-3 no-underline text-texto" data-accion="admin-whatsapp">
+        <span class="grid place-items-center w-12 h-12 rounded-2xl shrink-0 bg-tarjeta-alta text-primario-texto"><app-icono nombre="ajustes" clase="w-7 h-7" /></span>
+        <span class="min-w-0 flex-1 leading-snug"><b class="block text-lg">WhatsApp de Ganadero</b><span class="text-suave">Vincular el número y el resumen diario</span></span>
+        <app-icono nombre="flecha" clase="w-5 h-5 text-suave" />
+      </a>
+    }
+
     @if (cargando) {
       <div class="card p-10 flex flex-col items-center gap-3 text-center">
         <div class="w-10 h-10 rounded-full border-4 border-borde border-t-primario animate-spin"></div>

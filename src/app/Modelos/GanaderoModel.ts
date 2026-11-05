@@ -370,3 +370,31 @@ export interface IndicadoresDTO {
 }
 export interface IndicadoresGuardados { indicadores: IndicadoresDTO; recibidas: string; periodo: string; }
 export interface RespuestaServerIndicadores extends RespuestaServer { DATOS?: IndicadoresDTO }
+
+//RESUMEN DIARIO POR WHATSAPP (FASE 5D) ----------------------------------------------------------------------------------------------
+//EL ESTADO DEL NUMERO QUE MANDA (EVOLUTION) Y LA CONFIGURACION QUE CAMBIA EL ADMINISTRADOR
+export interface EstadoWhatsappDTO {
+  configurado: boolean;               //HAY LLAVE DE EVOLUTION EN EL .env DE ms-logica
+  existe: boolean | null;             //LA INSTANCIA YA EXISTE EN EVOLUTION
+  estado: string | null;              //open = VINCULADO
+  numero: string | null;
+  nombrePerfil: string | null;
+  INSTANCIA: string;
+  HORA: string;
+  ACTIVO: boolean;
+  DUENIOS_CON_RESUMEN: number;
+  HOY: { ENVIADOS: number; PENDIENTES: number; FALLIDOS: number };
+}
+export interface RespuestaServerEstadoWhatsapp extends RespuestaServer { DATOS?: EstadoWhatsappDTO }
+export interface RespuestaServerConectarWhatsapp extends RespuestaServer { DATOS?: { QR: string; CODIGO_VINCULACION: string | null } }
+
+//LO QUE VE EL DUEÑO DE SU RESUMEN EN UNA FINCA
+export interface ResumenWhatsappDTO {
+  ACTIVO: boolean;
+  ENVIO_PRENDIDO: boolean;
+  HORA: string;
+  TEXTO_HOY: string;
+  HAY_ALERTAS_HOY: boolean;
+  ULTIMO: { FECHA_RESUMEN: string; ESTADO_MENSAJE: string; FECHA_ENVIO_MENSAJE: string | null } | null;
+}
+export interface RespuestaServerResumenWhatsapp extends RespuestaServer { DATOS?: ResumenWhatsappDTO }

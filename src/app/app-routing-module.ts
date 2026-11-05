@@ -16,6 +16,12 @@ const routes: Routes = [
     loadChildren: () => import('./modulos/fincas/fincas.module').then(m => m.FincasModule),
   },
 
+  //EL ADMINISTRADOR DE LA PLATAFORMA (FASE 5D: EL WHATSAPP). NO NECESITA FINCA
+  {
+    path: 'admin',
+    loadChildren: () => import('./modulos/admin/admin.module').then(m => m.AdminModule),
+  },
+
   //EL CAMPO (SIN SESION EL GUARDIAN LLEVA AL INGRESO; SIN FINCA, A ELEGIRLA)
   {
     path: 'app',

@@ -1,0 +1,83 @@
+<div class="min-h-screen px-4 py-8">
+  <div class="w-full max-w-xl mx-auto grid grid-cols-1 gap-4">
+    <a routerLink="/fincas" class="btn-secundario self-start"><app-icono nombre="finca" clase="w-5 h-5" /> Volver</a>
+    <h1 class="text-2xl font-bold m-0">WhatsApp de Ganadero</h1>
+
+    @if (!puede) {
+      <div class="card p-6 text-center">
+        <app-icono nombre="candado" clase="w-10 h-10 mx-auto text-suave" />
+        <p class="font-bold text-lg mt-3 mb-0">Esta pantalla es del administrador</p>
+      </div>
+    } @else if (cargando) {
+      <div class="card p-6 text-suave text-center">Revisando WhatsApp...</div>
+    } @else if (errorCarga) {
+      <div class="aviso-error">{{ errorCarga }} <button type="button" class="btn-secundario mt-2" (click)="cargar()">Intentar de nuevo</button></div>
+    } @else if (estado) {
+      <p class="ayuda-finca m-0">
+        Desde aquí se vincula el número que <b>manda</b> los mensajes (uno de WhatsApp Business de Ganadero, no uno personal) y se prende
+        el <b>resumen diario</b>. A cada dueño que lo pidió en «Mi finca» le llega cada mañana lo de «Para hoy», solo si hay algo urgente.
+      </p>
+
+      <!-- 1. EL NUMERO QUE MANDA -->
+      <section class="card p-4 grid gap-3">
+        <h2 class="text-lg font-semibold m-0">1. El número que manda</h2>
+        @if (!estado.configurado) {
+          <p class="aviso-error m-0">Falta la llave de Evolution en el servidor (<code>WHATSAPP_API_KEY</code> en el <code>.env</code> de ms-logica).</p>
+        } @else if (vinculado) {
+          <p class="m-0" data-estado-whatsapp="open"><span class="badge badge-success">Vinculado</span>
+            {{ estado.numero ? '+' + estado.numero : '' }}{{ estado.nombrePerfil ? ' · ' + estado.nombrePerfil : '' }}</p>
+          <button type="button" class="btn-secundario text-peligro" (click)="confirmarDesconectar = true">Desconectar</button>
+        } @else if (qrWhatsapp) {
+          <div class="grid justify-items-center gap-2 text-center">
+            <img [src]="qrWhatsapp" alt="QR para vincular WhatsApp" class="w-60 h-60 bg-white p-2 rounded-xl" data-qr-whatsapp>
+            <p class="m-0 text-sm">En el celular: <b>WhatsApp → ⋮ → Dispositivos vinculados → Vincular un dispositivo</b> y escanea el código.</p>
+            @if (codigoVinculacion) { <p class="m-0 text-sm">O con el código: <b>{{ codigoVinculacion }}</b></p> }
+            <p class="ayuda m-0">El código vence en unos 40 segundos. Esta pantalla se entera sola cuando quede vinculado.</p>
+            <div class="grid grid-cols-2 gap-2 w-full">
+              <button type="button" class="btn-secundario" (click)="generarQr()" [disabled]="generandoQr">Generar otro QR</button>
+              <button type="button" class="btn-secundario" (click)="cancelarQr()">Cancelar</button>
+            </div>
+          </div>
+        } @else {
+          <p class="m-0" data-estado-whatsapp="no"><span class="badge badge-warning">Sin vincular</span> {{ estado.existe === false ? 'La instancia todavía no existe: la app la crea.' : '' }}</p>
+          <button type="button" class="btn-primary" (click)="generarQr()" [disabled]="generandoQr" data-accion="vincular">{{ generandoQr ? 'Generando...' : 'Vincular con QR' }}</button>
+        }
+      </section>
+
+      <!-- 2. EL RESUMEN -->
+      <section class="card p-4 grid gap-3">
+        <h2 class="text-lg font-semibold m-0">2. El resumen diario</h2>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="label-field" for="instancia">Instancia</label>
+            <input id="instancia" type="text" class="input-field" [(ngModel)]="instancia" maxlength="50" autocomplete="off">
+          </div>
+          <div>
+            <label class="label-field" for="hora">Hora</label>
+            <input id="hora" type="time" class="input-field" [(ngModel)]="hora">
+          </div>
+        </div>
+        <p class="ayuda m-0">La instancia es el nombre de esta instalación en Evolution (una por sitio: la demo usa otra). La hora es de Colombia.</p>
+        <label class="flex items-center gap-3 min-h-[48px] cursor-pointer">
+          <input type="checkbox" class="w-6 h-6 accent-primario" [(ngModel)]="activo" id="activo">
+          <span><b>Enviar el resumen</b> a los dueños que lo pidieron ({{ estado.DUENIOS_CON_RESUMEN }})</span>
+        </label>
+        <button type="button" class="btn-primary" (click)="guardar()" [disabled]="guardando" data-accion="guardar">{{ guardando ? 'Guardando...' : 'Guardar' }}</button>
+      </section>
+
+      <!-- 3. HOY -->
+      <section class="card p-4 grid gap-3">
+        <h2 class="text-lg font-semibold m-0">3. Hoy</h2>
+        <p class="m-0" data-hoy>{{ estado.HOY.ENVIADOS }} enviados · {{ estado.HOY.PENDIENTES }} por mandar · {{ estado.HOY.FALLIDOS }} con problema</p>
+        <p class="ayuda m-0">Los resúmenes salen solos a la hora; los que fallan se reintentan cada 5 minutos (3 veces). Con este botón salen ya, sin esperar la hora; no se repiten.</p>
+        <button type="button" class="btn-secundario" (click)="enviarYa()" [disabled]="enviando || !estado.ACTIVO" data-accion="enviar-ya">{{ enviando ? 'Mandando...' : 'Mandar los de hoy ya' }}</button>
+        @if (!estado.ACTIVO) { <p class="ayuda m-0">Primero prende «Enviar el resumen» y guarda.</p> }
+        @if (resultadoEnvio) { <p class="m-0 font-semibold" data-resultado-envio>{{ resultadoEnvio }}</p> }
+      </section>
+    }
+  </div>
+</div>
+
+<app-confirmar-accion [abierto]="confirmarDesconectar" titulo="Desconectar WhatsApp"
+  descripcion="El número deja de mandar los resúmenes hasta que lo vuelvas a vincular." textoBoton="Desconectar"
+  [procesando]="desconectando" (confirmar)="desconectar()" (cancelar)="confirmarDesconectar = false" />

@@ -19,6 +19,9 @@
 } @else {
   <div class="flex flex-col gap-6 animate-fade-in">
 
+    <!-- RESUMEN POR WHATSAPP (FASE 5D) -->
+    @if (idFinca) { <app-resumen-whatsapp [idFinca]="idFinca" /> }
+
     <!-- PERSONAS -->
     <section class="flex flex-col gap-4">
       <div class="flex flex-col sm:flex-row gap-3 sm:items-center">

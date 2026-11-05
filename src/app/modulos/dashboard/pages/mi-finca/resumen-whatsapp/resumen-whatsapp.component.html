@@ -1,0 +1,29 @@
+<!-- RESUMEN POR WHATSAPP (FASE 5D) -->
+<section class="card p-4 grid grid-cols-1 gap-3" data-resumen-whatsapp>
+  <h2 class="text-xl font-semibold m-0">Resumen por WhatsApp</h2>
+  @if (cargando) {
+    <p class="text-suave m-0">Revisando...</p>
+  } @else if (errorCarga) {
+    <p class="aviso-error m-0">{{ errorCarga }}</p>
+  } @else if (resumen) {
+    <p class="ayuda m-0">
+      Cada mañana, a las <b>{{ resumen.HORA }}</b>, te llega a tu WhatsApp lo de «Para hoy» de esta finca: leche que no se vende, partos cerca,
+      vacas por palpar o vacías, vacunas y ciclos del ICA. <b>Solo si hay algo urgente</b>; si todo está al día, no te llega nada.
+    </p>
+    @if (!resumen.ENVIO_PRENDIDO) {
+      <p class="aviso-error m-0" role="status">El envío por WhatsApp todavía no está prendido en Ganadero. Puedes dejarlo pedido: empieza a llegar cuando lo prendan.</p>
+    }
+    <label class="flex items-center gap-3 min-h-[48px] cursor-pointer">
+      <input type="checkbox" class="w-6 h-6 accent-primario" [checked]="resumen.ACTIVO" [disabled]="guardando" (change)="cambiar($any($event.target).checked)" data-accion="pedir-resumen">
+      <span class="font-semibold">{{ resumen.ACTIVO ? 'Me llega el resumen cada mañana' : 'Quiero el resumen cada mañana' }}</span>
+    </label>
+    @if (resumen.ACTIVO) { <p class="m-0 text-sm" data-ultimo>{{ textoUltimo }}</p> }
+    <button type="button" class="text-sm font-bold text-primario-texto bg-transparent border-0 p-0 cursor-pointer underline justify-self-start" (click)="verTexto = !verTexto">
+      {{ verTexto ? 'Ocultar el de hoy' : 'Ver cómo sería el de hoy' }}
+    </button>
+    @if (verTexto) {
+      <pre class="m-0 p-3 rounded-2xl bg-tarjeta-alta text-sm whitespace-pre-wrap font-sans" data-texto-hoy>{{ resumen.TEXTO_HOY }}</pre>
+    }
+    <button type="button" class="btn-secundario" (click)="probar()" [disabled]="probando" data-accion="probar-resumen">{{ probando ? 'Mandando...' : 'Mandarme el de hoy ahora' }}</button>
+  }
+</section>

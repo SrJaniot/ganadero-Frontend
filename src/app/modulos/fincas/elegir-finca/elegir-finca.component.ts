@@ -82,6 +82,11 @@ export class ElegirFincaComponent implements OnInit {
     return this.seguridadService.esDuenio();
   }
 
+  //EL ADMINISTRADOR DE LA PLATAFORMA (MENU 7 CONFIGURACION EDITAR) VE EL ENLACE A SU PANTALLA DEL WHATSAPP
+  get esAdministrador(): boolean {
+    return this.seguridadService.tienePermiso(7, 'editar');
+  }
+
   cargarFincas() {
     this.errorCarga = false;
     this.sinSenal = false;
