@@ -6,6 +6,21 @@
       <p class="text-suave mt-1 mb-0">El hato en el celular, aunque no haya señal</p>
     </div>
 
+    <!-- SOLO EN LA DEMO: ENTRADA RAPIDA A LAS TRES CUENTAS DE EJEMPLO -->
+    @if (esDemo) {
+      <div class="card p-5 mb-4 grid gap-3 border-primario" data-demo>
+        <div>
+          <p class="m-0 font-bold text-lg">Probar la demo</p>
+          <p class="ayuda m-0">«Finca La Esperanza», en San Gil, con dos años de historia. Puedes registrar y cambiar lo que quieras: cada madrugada vuelve a quedar como nueva.</p>
+        </div>
+        @for (c of cuentasDemo; track c.rol) {
+          <button type="button" class="w-full min-h-[64px] rounded-2xl border-2 border-borde bg-tarjeta px-4 py-3 text-left cursor-pointer hover:bg-tarjeta-alta disabled:opacity-60" (click)="entrarDemo(c.rol)" [disabled]="!!entrandoDemo" [attr.data-demo-rol]="c.rol">
+            <span class="leading-snug"><b class="block">{{ entrandoDemo === c.rol ? 'Entrando...' : c.texto }}</b><span class="text-sm text-suave">{{ c.detalle }}</span></span>
+          </button>
+        }
+      </div>
+    }
+
     <form class="card p-6 md:p-7" [formGroup]="ingresoForm" (ngSubmit)="entrar()" novalidate>
       <div class="mb-4">
         <label class="label-field" for="celular">Celular</label>
@@ -34,6 +49,7 @@
 
       <button type="submit" class="btn-primary w-full" [disabled]="ingresando">{{ ingresando ? 'Entrando...' : 'Entrar' }}</button>
     </form>
+
 
     <div class="card p-5 mt-4 text-center">
       <p class="m-0 font-semibold">¿Es dueño de una finca y aún no tiene cuenta?</p>

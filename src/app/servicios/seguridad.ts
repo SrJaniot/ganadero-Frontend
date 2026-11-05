@@ -54,6 +54,15 @@ export class SeguridadService {
     });
   }
 
+  //SOLO EN LA DEMO (demoganadera.ejaniot.com): ¿ESTA PRENDIDA LA ENTRADA RAPIDA? Y ENTRAR COMO UNA DE LAS TRES CUENTAS DE EJEMPLO
+  DemoActiva():Observable <RespuestaServer>{
+    return this.http.get<RespuestaServer>(this.url_ms_seguridad + 'demo-activa');
+  }
+
+  EntrarDemo(rol: 'DUENIO' | 'VAQUERO' | 'VETERINARIO'):Observable <RespuestaServer>{
+    return this.http.post<RespuestaServer>(this.url_ms_seguridad + 'entrar-demo', { rol });
+  }
+
   //EL DUEÑO SE REGISTRA SOLO (DECISION DEL 04/11/2026). LOS VAQUEROS LOS CREA EL DUEÑO DESDE MI FINCA
   RegistrarDuenio(nombre: string, celular: string, clave: string):Observable <RespuestaServer>{
     return this.http.post<RespuestaServer>(this.url_ms_seguridad + 'registrar-duenio',{
