@@ -14,8 +14,27 @@ interface Peticion {
   url: string;
   token?: string | null;
   cuerpo?: unknown;
-  funcion?: string;
+  bd?: LlamadoBD;
+  orm?: string;
+  rechazada?: boolean;
   explicacion?: string;
+}
+
+//COMO LLAMA EL CONTROLADOR A LA FUNCION: LOS MISMOS TEXTOS DE sql.config.ts Y LOS MISMOS PARAMETROS, EN EL MISMO ORDEN
+interface LlamadoBD {
+  funcion: string;
+  firma: string[];
+  sql: string;
+  params: (string | number | null)[];
+  anidada?: string;
+}
+
+interface VistaBD {
+  funcion: string;
+  parametros: [string, string][];
+  codigo: string;
+  sqlReal: string;
+  anidada?: string;
 }
 
 interface Ejecucion {
@@ -33,7 +52,9 @@ interface Ejecucion {
   esLarga: boolean;
   verCompleta: boolean;
   exito: boolean;
-  funcion?: string;
+  bd?: VistaBD;
+  orm?: string;
+  rechazada: boolean;
   explicacion?: string;
 }
 
@@ -101,6 +122,7 @@ export class LaboratorioComponent implements OnInit {
         metodo: 'POST',
         url: this.urlSeguridad + 'entrar-demo',
         cuerpo: { rol },
+        orm: 'Este endpoint no usa una función de PostgreSQL: ms-seguridad consulta y escribe con el ORM de LoopBack sobre las tablas usuario, menurol y login.',
         explicacion: 'ms-seguridad busca la cuenta, firma un JWT, registra la sesión en la tabla login y responde el usuario, el token y sus permisos por menú.',
       });
       this.resultados.login = [ejecucion];
@@ -167,12 +189,13 @@ export class LaboratorioComponent implements OnInit {
   async consultar(que: 'fincas' | 'animales' | 'alertas' | 'indicadores'): Promise<void> {
     await this.correr('consulta-' + que, async () => {
       if (!(await this.asegurarFinca())) return;
-      const f = this.idFinca;
+      const f = this.idFinca!;
+      const u = this.usuario!.id_usuario;
       const def: Record<typeof que, Peticion> = {
-        fincas: { titulo: 'Mis fincas', metodo: 'GET', url: this.urlLogica + 'ObtenerMisFincas', token: this.token, funcion: 'FUN_OBTENER_MIS_FINCAS_JSON($1)', explicacion: 'El usuario sale del token, no de la URL: nadie puede pedir las fincas de otra persona.' },
-        animales: { titulo: 'Animales activos', metodo: 'GET', url: `${this.urlLogica}ObtenerAnimales/${f}/ACTIVO`, token: this.token, funcion: 'FUN_OBTENER_ANIMALES_JSON($1,$2,$3)', explicacion: 'La categoría de cada animal (vaca, novilla, ternero) la calcula la base de datos.' },
-        alertas: { titulo: 'Alertas de hoy', metodo: 'GET', url: `${this.urlLogica}ObtenerAlertas/${f}`, token: this.token, funcion: 'FUN_OBTENER_ALERTAS_JSON($1,$2,$3::DATE)', explicacion: 'Una sola función calcula partos próximos, vacas por palpar, vacunas, retiros de leche y ciclos del ICA.' },
-        indicadores: { titulo: 'Indicadores', metodo: 'POST', url: this.urlLogica + 'ObtenerIndicadores', token: this.token, cuerpo: { id_finca: f, desde: null, hasta: null }, funcion: 'FUN_OBTENER_INDICADORES_JSON($1,$2,$3::DATE,$4::DATE)', explicacion: 'Sin fechas, usa el período por defecto. La función también valida que el usuario tenga acceso a esa finca.' },
+        fincas: { titulo: 'Mis fincas', metodo: 'GET', url: this.urlLogica + 'ObtenerMisFincas', token: this.token, bd: { funcion: 'FUN_OBTENER_MIS_FINCAS_JSON', firma: ['jID_USUARIO'], sql: 'SELECT FUN_OBTENER_MIS_FINCAS_JSON($1) as resultado', params: [u] }, explicacion: 'El usuario sale del token, no de la URL: nadie puede pedir las fincas de otra persona.' },
+        animales: { titulo: 'Animales activos', metodo: 'GET', url: `${this.urlLogica}ObtenerAnimales/${f}/ACTIVO`, token: this.token, bd: { funcion: 'FUN_OBTENER_ANIMALES_JSON', firma: ['jID_FINCA', 'jESTADO', 'jID_USUARIO'], sql: 'SELECT FUN_OBTENER_ANIMALES_JSON($1,$2,$3) as resultado', params: [f, 'ACTIVO', u] }, explicacion: 'La categoría de cada animal (vaca, novilla, ternero) la calcula la base de datos.' },
+        alertas: { titulo: 'Alertas de hoy', metodo: 'GET', url: `${this.urlLogica}ObtenerAlertas/${f}`, token: this.token, bd: { funcion: 'FUN_OBTENER_ALERTAS_JSON', firma: ['jID_FINCA', 'jID_USUARIO', 'jFECHA'], sql: 'SELECT FUN_OBTENER_ALERTAS_JSON($1,$2,$3::DATE) as resultado', params: [f, u, null] }, explicacion: 'Una sola función calcula partos próximos, vacas por palpar, vacunas, retiros de leche y ciclos del ICA.' },
+        indicadores: { titulo: 'Indicadores', metodo: 'POST', url: this.urlLogica + 'ObtenerIndicadores', token: this.token, cuerpo: { id_finca: f, desde: null, hasta: null }, bd: { funcion: 'FUN_OBTENER_INDICADORES_JSON', firma: ['jID_FINCA', 'jID_USUARIO', 'jDESDE', 'jHASTA'], sql: 'SELECT FUN_OBTENER_INDICADORES_JSON($1,$2,$3::DATE,$4::DATE) as resultado', params: [f, u, null, null] }, explicacion: 'Sin fechas, usa el período por defecto. La función también valida que el usuario tenga acceso a esa finca.' },
       };
       const { ejecucion } = await this.lanzar(def[que]);
       this.resultados.consulta = [ejecucion];
@@ -183,7 +206,7 @@ export class LaboratorioComponent implements OnInit {
   async sinToken(): Promise<void> {
     await this.correr('sin-token', async () => {
       const { ejecucion } = await this.lanzar({
-        titulo: 'La misma consulta, sin token', metodo: 'GET', url: this.urlLogica + 'ObtenerMisFincas',
+        titulo: 'La misma consulta, sin token', metodo: 'GET', url: this.urlLogica + 'ObtenerMisFincas', rechazada: true,
         explicacion: 'La petición no pasa de la estrategia de autenticación: la función de PostgreSQL nunca se ejecuta.',
       });
       this.resultados.seguridad = [ejecucion];
@@ -196,7 +219,7 @@ export class LaboratorioComponent implements OnInit {
       const pos = t.length - 12;
       const falso = t.slice(0, pos) + (t[pos] === 'A' ? 'B' : 'A') + t.slice(pos + 1);
       const { ejecucion } = await this.lanzar({
-        titulo: 'Token con un carácter cambiado', metodo: 'GET', url: this.urlLogica + 'ObtenerMisFincas', token: falso,
+        titulo: 'Token con un carácter cambiado', metodo: 'GET', url: this.urlLogica + 'ObtenerMisFincas', token: falso, rechazada: true,
         explicacion: 'Se cambió un solo carácter de la firma. El servidor verifica la firma con su clave secreta y lo rechaza.',
       });
       this.resultados.seguridad = [ejecucion];
@@ -209,10 +232,11 @@ export class LaboratorioComponent implements OnInit {
       if (!(await this.asegurarFinca())) return;
       const login = await this.lanzar({
         titulo: 'Paso 1: pedir un token de vaquero', metodo: 'POST', url: this.urlSeguridad + 'entrar-demo', cuerpo: { rol: 'VAQUERO' },
+        orm: 'Este endpoint no usa una función de PostgreSQL: ms-seguridad usa el ORM de LoopBack.',
         explicacion: 'Es un token aparte; la sesión de este navegador no cambia.',
       });
       const { ejecucion } = await this.lanzar({
-        titulo: 'Paso 2: el vaquero pide el dinero de la finca', metodo: 'POST', url: this.urlLogica + 'ObtenerPlata', token: login.datos?.DATOS?.token,
+        titulo: 'Paso 2: el vaquero pide el dinero de la finca', metodo: 'POST', url: this.urlLogica + 'ObtenerPlata', token: login.datos?.DATOS?.token, rechazada: true,
         cuerpo: { id_finca: this.idFinca, desde: null, hasta: null },
         explicacion: 'El token es válido, pero el rol vaquero no tiene permiso sobre ese menú. Solo el dueño ve el dinero.',
       });
@@ -231,16 +255,20 @@ export class LaboratorioComponent implements OnInit {
         repetido: ['Reenviar el mismo pesaje', 'Es lo que pasa si se cae la señal y el celular reintenta: mismo UUID, y la base no lo duplica.'],
         invalido: ['Pesaje de 5000 kg', 'La respuesta HTTP es 200 porque el envío se procesó; dentro, ese registro aparece RECHAZADO con el motivo.'],
       }[caso];
+      const registros = [{
+        orden: 1, uuid, tipo: 'PESAJE', operacion: 'CREAR',
+        datos: { uuid_animal: this.animal!.uuid, peso_kg: caso === 'invalido' ? 5000 : 438.5, estimado_cinta: 'NO', fecha_evento: ahoraLocal(), observacion: 'Pesaje del laboratorio' },
+      }];
       const { ejecucion } = await this.lanzar({
         titulo: textos[0], metodo: 'POST', url: this.urlLogica + 'SincronizarRegistros', token: this.token,
-        cuerpo: {
-          id_finca: this.idFinca,
-          registros: [{
-            orden: 1, uuid, tipo: 'PESAJE', operacion: 'CREAR',
-            datos: { uuid_animal: this.animal!.uuid, peso_kg: caso === 'invalido' ? 5000 : 438.5, estimado_cinta: 'NO', fecha_evento: ahoraLocal(), observacion: 'Pesaje del laboratorio' },
-          }],
+        cuerpo: { id_finca: this.idFinca, registros },
+        bd: {
+          funcion: 'FUN_SINCRONIZAR_REGISTROS_JSON',
+          firma: ['jID_FINCA', 'jID_USUARIO', 'jREGISTROS'],
+          sql: 'SELECT FUN_SINCRONIZAR_REGISTROS_JSON($1,$2,$3) as resultado',
+          params: [this.idFinca, this.usuario!.id_usuario, JSON.stringify(registros)],
+          anidada: 'Por cada registro de tipo PESAJE, esta función llama a FUN_CREAR_PESAJE_JSON(jUUID, jID_FINCA, ...).',
         },
-        funcion: 'FUN_SINCRONIZAR_REGISTROS_JSON($1,$2,$3) → FUN_CREAR_PESAJE_JSON(...)',
         explicacion: textos[1],
       });
       this.resultados.pesaje = [ejecucion];
@@ -253,10 +281,11 @@ export class LaboratorioComponent implements OnInit {
       const token = this.token!;
       const cierre = await this.lanzar({
         titulo: 'Cerrar la sesión', metodo: 'POST', url: this.urlSeguridad + 'cerrar-sesion', cuerpo: { id_usuario: this.usuario!.id_usuario, token },
+        orm: 'Este endpoint no usa una función de PostgreSQL: ms-seguridad actualiza la tabla login con el ORM de LoopBack.',
         explicacion: 'El servidor marca esa sesión como inactiva en la tabla login (estado_token = false).',
       });
       const prueba = await this.lanzar({
-        titulo: 'Usar otra vez el mismo token', metodo: 'GET', url: this.urlLogica + 'ObtenerMisFincas', token,
+        titulo: 'Usar otra vez el mismo token', metodo: 'GET', url: this.urlLogica + 'ObtenerMisFincas', token, rechazada: true,
         explicacion: 'El token aún no ha vencido y su firma es correcta, pero la sesión ya está cerrada: el servidor lo rechaza.',
       });
       this.resultados.cierre = [cierre.ejecucion, prueba.ejecucion];
@@ -321,9 +350,21 @@ export class LaboratorioComponent implements OnInit {
       respuestaCorta: esLarga ? lineas.slice(0, LINEAS_RESPUESTA).join('\n') + `\n… ${lineas.length - LINEAS_RESPUESTA} líneas más` : respuesta,
       esLarga, verCompleta: false,
       exito: estado >= 200 && estado < 300,
-      funcion: p.funcion, explicacion: p.explicacion,
+      bd: p.bd ? this.vistaBD(p.bd) : undefined, orm: p.orm, rechazada: !!p.rechazada && estado === 401, explicacion: p.explicacion,
     };
     return { ejecucion, datos };
+  }
+
+  //ARMA LO QUE SE MUESTRA DEL LLAMADO: EL CODIGO DEL CONTROLADOR Y EL SQL CON LOS VALORES YA PUESTOS
+  private vistaBD(b: LlamadoBD): VistaBD {
+    const literal = (v: string | number | null) => v === null ? 'NULL' : typeof v === 'number' ? String(v) : `'${v.replace(/'/g, "''")}'`;
+    return {
+      funcion: b.funcion,
+      anidada: b.anidada,
+      parametros: b.firma.map((n, i): [string, string] => [`$${i + 1} ${n}`, literal(b.params[i])]),
+      codigo: `const sql = '${b.sql}';\nconst params = ${JSON.stringify(b.params)};\nconst result = await this.genericRepository.dataSource.execute(sql, params);\nconst retorno = result[0].resultado; // CODIGO, MENSAJE, DATOS`,
+      sqlReal: b.sql.replace(/\$(\d+)/g, (_, n) => literal(b.params[Number(n) - 1])) + ';',
+    };
   }
 
   private textoDeEstado(estado: number): string {

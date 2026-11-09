@@ -171,8 +171,45 @@ Content-Type: {{ e.tipoContenido }}
         }
       </div>
     </div>
-    @if (e.funcion) {
-      <p class="m-0 text-sm"><b>Función que ejecuta:</b>&nbsp;<code class="break-all">{{ e.funcion }}</code></p>
+    @if (e.bd) {
+      <div class="rounded-xl border-l-4 border-primario bg-tarjeta-alta p-4 grid gap-4" data-lab-bd>
+        <div>
+          <p class="m-0 text-lg font-bold">En la base de datos</p>
+          <p class="m-0 mt-1">Función de PostgreSQL: <code class="font-bold break-all" data-lab-funcion>{{ e.bd.funcion }}</code></p>
+        </div>
+        <div class="grid lg:grid-cols-2 gap-4">
+          <div class="min-w-0">
+            <p class="m-0 mb-1 font-semibold">1. Parámetros que recibe</p>
+            <div class="grid gap-1 text-sm">
+              @for (x of e.bd.parametros; track x[0]) {
+                <p class="m-0 break-all"><code><b>{{ x[0] }}</b> = {{ x[1] }}</code></p>
+              }
+            </div>
+          </div>
+          <div class="min-w-0">
+            <p class="m-0 mb-1 font-semibold">2. Cómo la llama LoopBack</p>
+            <pre class="m-0 p-3 rounded-xl bg-[#18211c] text-[#e6ede3] text-sm whitespace-pre-wrap break-words">{{ e.bd.codigo }}</pre>
+          </div>
+          <div class="min-w-0">
+            <p class="m-0 mb-1 font-semibold">3. Lo que ejecuta PostgreSQL</p>
+            <pre class="m-0 p-3 rounded-xl bg-[#18211c] text-[#e6ede3] text-sm whitespace-pre-wrap break-words max-h-[20rem] overflow-auto" data-lab-sql>{{ e.bd.sqlReal }}</pre>
+            @if (e.bd.anidada) {
+              <p class="m-0 mt-2 text-sm">{{ e.bd.anidada }}</p>
+            }
+          </div>
+          <div class="min-w-0">
+            <p class="m-0 mb-1 font-semibold">4. Lo que retorna la función (columna resultado)</p>
+            <pre class="m-0 p-3 rounded-xl bg-[#18211c] text-[#e6ede3] text-sm overflow-auto max-h-[20rem]" data-lab-retorno>{{ e.verCompleta ? e.respuesta : e.respuestaCorta }}</pre>
+          </div>
+        </div>
+        <p class="m-0 text-sm">La función devuelve un solo valor JSON. LoopBack lo lee de result[0].resultado y lo envía como respuesta HTTP.</p>
+      </div>
+    }
+    @if (e.orm) {
+      <p class="m-0 rounded-xl border-l-4 border-borde bg-tarjeta-alta p-3" data-lab-orm><b>En la base de datos:</b> {{ e.orm }}</p>
+    }
+    @if (e.rechazada) {
+      <p class="m-0 rounded-xl border-l-4 border-peligro bg-peligro-fondo p-3" data-lab-no-llega><b>En la base de datos:</b> la función del negocio no se ejecutó. La petición se rechazó antes de llegar a ella.</p>
     }
     @if (e.explicacion) {
       <p class="m-0">{{ e.explicacion }}</p>
