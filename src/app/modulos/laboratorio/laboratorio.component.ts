@@ -27,6 +27,7 @@ interface LlamadoBD {
   sql: string;
   params: (string | number | null)[];
   anidada?: string;
+  scriptsExtra?: string[];
 }
 
 interface VistaBD {
@@ -35,6 +36,7 @@ interface VistaBD {
   codigo: string;
   sqlReal: string;
   anidada?: string;
+  scripts: string[];
 }
 
 interface Ejecucion {
@@ -53,6 +55,7 @@ interface Ejecucion {
   verCompleta: boolean;
   exito: boolean;
   bd?: VistaBD;
+  verScript: boolean;
   orm?: string;
   rechazada: boolean;
   explicacion?: string;
@@ -92,6 +95,9 @@ export class LaboratorioComponent implements OnInit {
   animal: { uuid: string; etiqueta: string } | null = null;
   uuidPesaje: string | null = null;
 
+  //EL TEXTO DE LAS FUNCIONES, COPIADO DE db/FUNCIONES: SOLO SE MUESTRA, NO VIENE DE LA BASE
+  private funcionesSQL: Record<string, string> = {};
+
   resultados: Record<Seccion, Ejecucion[]> = { login: [], consulta: [], seguridad: [], pesaje: [], cierre: [] };
 
   constructor(private seguridadService: SeguridadService, private cd: ChangeDetectorRef) {}
@@ -104,9 +110,24 @@ export class LaboratorioComponent implements OnInit {
     } catch {
       this.esDemo = false;
     }
-    if (this.esDemo) this.leerSesion();
+    if (this.esDemo) {
+      this.leerSesion();
+      try {
+        this.funcionesSQL = await (await fetch('/funciones-laboratorio.json')).json();
+      } catch {
+        this.funcionesSQL = {};
+      }
+    }
     this.cargando = false;
     this.cd.detectChanges();
+  }
+
+  script(nombre: string): string {
+    return this.funcionesSQL[nombre] ?? 'No se pudo cargar el script de esta función.';
+  }
+
+  lineasScript(nombre: string): number {
+    return this.script(nombre).split('\n').length;
   }
 
   get tokenCorto(): string {
@@ -268,6 +289,7 @@ export class LaboratorioComponent implements OnInit {
           sql: 'SELECT FUN_SINCRONIZAR_REGISTROS_JSON($1,$2,$3) as resultado',
           params: [this.idFinca, this.usuario!.id_usuario, JSON.stringify(registros)],
           anidada: 'Por cada registro de tipo PESAJE, esta función llama a FUN_CREAR_PESAJE_JSON(jUUID, jID_FINCA, ...).',
+          scriptsExtra: ['FUN_CREAR_PESAJE_JSON', 'FUN_VALIDAR_PESAJES'],
         },
         explicacion: textos[1],
       });
@@ -350,7 +372,7 @@ export class LaboratorioComponent implements OnInit {
       respuestaCorta: esLarga ? lineas.slice(0, LINEAS_RESPUESTA).join('\n') + `\n… ${lineas.length - LINEAS_RESPUESTA} líneas más` : respuesta,
       esLarga, verCompleta: false,
       exito: estado >= 200 && estado < 300,
-      bd: p.bd ? this.vistaBD(p.bd) : undefined, orm: p.orm, rechazada: !!p.rechazada && estado === 401, explicacion: p.explicacion,
+      bd: p.bd ? this.vistaBD(p.bd) : undefined, verScript: false, orm: p.orm, rechazada: !!p.rechazada && estado === 401, explicacion: p.explicacion,
     };
     return { ejecucion, datos };
   }
@@ -361,6 +383,7 @@ export class LaboratorioComponent implements OnInit {
     return {
       funcion: b.funcion,
       anidada: b.anidada,
+      scripts: [b.funcion, ...(b.scriptsExtra ?? [])],
       parametros: b.firma.map((n, i): [string, string] => [`$${i + 1} ${n}`, literal(b.params[i])]),
       codigo: `const sql = '${b.sql}';\nconst params = ${JSON.stringify(b.params)};\nconst result = await this.genericRepository.dataSource.execute(sql, params);\nconst retorno = result[0].resultado; // CODIGO, MENSAJE, DATOS`,
       sqlReal: b.sql.replace(/\$(\d+)/g, (_, n) => literal(b.params[Number(n) - 1])) + ';',
