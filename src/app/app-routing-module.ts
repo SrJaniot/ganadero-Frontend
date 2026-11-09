@@ -28,6 +28,12 @@ const routes: Routes = [
     loadChildren: () => import('./modulos/dashboard/dashboard-module').then(m => m.DashboardModule),
   },
 
+  //SOLO EN LA DEMO: PETICIONES REALES A LA API, PARA MOSTRAR COMO FUNCIONA POR DENTRO
+  {
+    path: 'laboratorio',
+    loadChildren: () => import('./modulos/laboratorio/laboratorio.module').then(m => m.LaboratorioModule),
+  },
+
   {
     path: '',
     redirectTo: 'app',

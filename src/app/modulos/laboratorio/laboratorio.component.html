@@ -1,0 +1,181 @@
+<main class="min-h-screen bg-fondo text-texto px-4 py-6 md:px-8 md:py-10">
+  <div class="max-w-6xl mx-auto grid gap-6">
+
+    <header class="grid gap-2">
+      <a routerLink="/seguridad/ingreso" class="text-sm text-primario-texto font-semibold w-fit">← Volver a la demo</a>
+      <h1 class="text-3xl md:text-4xl font-bold m-0">Laboratorio de la API</h1>
+      <p class="ayuda m-0 max-w-3xl">Cada botón lanza una petición real al servidor de la demo y muestra lo que se envía y lo que responde.</p>
+    </header>
+
+    @if (cargando) {
+      <p class="ayuda">Preguntando al servidor...</p>
+    } @else if (!esDemo) {
+      <div class="card p-6" data-lab-no-demo>
+        <p class="m-0 font-bold">Este apartado solo existe en la demo.</p>
+        <p class="ayuda m-0 mt-1">No hay conexión con el servidor o este sitio no es la demo.</p>
+      </div>
+    } @else {
+
+      <div class="card p-4 md:p-5" data-lab-recorrido>
+        <p class="m-0 mb-3 font-bold">El camino de cada petición</p>
+        <div class="flex flex-wrap items-center gap-2 text-sm">
+          <span class="badge badge-neutral">Navegador</span><span aria-hidden="true">→</span>
+          <span class="badge badge-neutral">Apache (HTTPS)</span><span aria-hidden="true">→</span>
+          <span class="badge badge-neutral">ms-logica (LoopBack)</span><span aria-hidden="true">→</span>
+          <span class="badge badge-neutral">ms-seguridad valida el token</span><span aria-hidden="true">→</span>
+          <span class="badge badge-neutral">Función de PostgreSQL</span><span aria-hidden="true">→</span>
+          <span class="badge badge-neutral">JSON de respuesta</span>
+        </div>
+      </div>
+
+      <!-- 1. LOGIN -->
+      <section class="card p-5 md:p-6 grid gap-4" data-lab-seccion="login">
+        <div>
+          <h2 class="text-2xl font-bold m-0">1. Iniciar sesión</h2>
+          <p class="ayuda m-0 mt-1">Elige una cuenta de ejemplo. El navegador guarda la sesión igual que la aplicación.</p>
+        </div>
+        <div class="flex flex-wrap gap-3">
+          @for (r of roles; track r.rol) {
+            <button type="button" class="btn-primary" [disabled]="ocupado !== null" (click)="entrar(r.rol)" [attr.data-lab-rol]="r.rol">{{ ocupado === 'entrar-' + r.rol ? 'Enviando...' : r.texto }}</button>
+          }
+        </div>
+        @for (e of resultados.login; track $index) {
+          <ng-container *ngTemplateOutlet="panel; context: { $implicit: e }"></ng-container>
+        }
+      </section>
+
+      <!-- 2. SESION -->
+      <section class="card p-5 md:p-6 grid gap-4" data-lab-seccion="sesion">
+        <div>
+          <h2 class="text-2xl font-bold m-0">2. Cómo queda guardada la sesión</h2>
+          <p class="ayuda m-0 mt-1">El token viaja en cada petición como <code>Authorization: Bearer</code>.</p>
+        </div>
+        @if (!token) {
+          <p class="m-0 text-suave" data-lab-sin-sesion>Todavía no hay sesión. Empieza por el paso 1.</p>
+        } @else {
+          <p class="m-0"><b>{{ usuario?.nombre }}</b> · Token: <code class="break-all" data-lab-token>{{ tokenCorto }}</code></p>
+          <div class="grid md:grid-cols-3 gap-4">
+            <div class="min-w-0">
+              <p class="m-0 mb-1 font-semibold">Cabecera del JWT</p>
+              <pre class="m-0 p-3 rounded-xl bg-[#18211c] text-[#e6ede3] text-sm whitespace-pre-wrap break-words">{{ jwtCabecera }}</pre>
+            </div>
+            <div class="min-w-0">
+              <p class="m-0 mb-1 font-semibold">Contenido del JWT</p>
+              <pre class="m-0 p-3 rounded-xl bg-[#18211c] text-[#e6ede3] text-sm whitespace-pre-wrap break-words" data-lab-jwt>{{ jwtContenido }}</pre>
+            </div>
+            <div class="min-w-0">
+              <p class="m-0 mb-1 font-semibold">Firma</p>
+              <div class="p-3 rounded-xl bg-tarjeta-alta text-sm">
+                <p class="m-0">El contenido se puede leer, pero no cambiar: la firma solo la puede generar el servidor.</p>
+                <p class="m-0 mt-2"><b>Vence:</b> {{ jwtVence }}</p>
+              </div>
+            </div>
+          </div>
+          <div class="min-w-0">
+            <p class="m-0 mb-1 font-semibold">localStorage, clave datosSesion</p>
+            <pre class="m-0 p-3 rounded-xl bg-[#18211c] text-[#e6ede3] text-sm overflow-auto max-h-80" data-lab-guardado>{{ sesionGuardada }}</pre>
+          </div>
+        }
+      </section>
+
+      <!-- 3. CONSULTAS -->
+      <section class="card p-5 md:p-6 grid gap-4" data-lab-seccion="consulta">
+        <div>
+          <h2 class="text-2xl font-bold m-0">3. Consultar con el token</h2>
+          <p class="ayuda m-0 mt-1">Endpoints reales que usa la aplicación. Cada uno ejecuta una función de PostgreSQL.</p>
+        </div>
+        <div class="flex flex-wrap gap-3">
+          <button type="button" class="btn-secundario" [disabled]="!token || ocupado !== null" (click)="consultar('fincas')" data-lab="fincas">GET Mis fincas</button>
+          <button type="button" class="btn-secundario" [disabled]="!token || ocupado !== null" (click)="consultar('animales')" data-lab="animales">GET Animales</button>
+          <button type="button" class="btn-secundario" [disabled]="!token || ocupado !== null" (click)="consultar('alertas')" data-lab="alertas">GET Alertas</button>
+          <button type="button" class="btn-secundario" [disabled]="!token || ocupado !== null" (click)="consultar('indicadores')" data-lab="indicadores">POST Indicadores</button>
+        </div>
+        @if (!token) { <p class="m-0 text-suave">Disponible después de iniciar sesión.</p> }
+        @for (e of resultados.consulta; track $index) {
+          <ng-container *ngTemplateOutlet="panel; context: { $implicit: e }"></ng-container>
+        }
+      </section>
+
+      <!-- 4. SEGURIDAD -->
+      <section class="card p-5 md:p-6 grid gap-4" data-lab-seccion="seguridad">
+        <div>
+          <h2 class="text-2xl font-bold m-0">4. Lo que el servidor rechaza</h2>
+          <p class="ayuda m-0 mt-1">El permiso se comprueba en cada petición, no en la pantalla.</p>
+        </div>
+        <div class="flex flex-wrap gap-3">
+          <button type="button" class="btn-secundario" [disabled]="ocupado !== null" (click)="sinToken()" data-lab="sin-token">Sin token</button>
+          <button type="button" class="btn-secundario" [disabled]="!token || ocupado !== null" (click)="tokenAlterado()" data-lab="token-alterado">Token alterado</button>
+          <button type="button" class="btn-secundario" [disabled]="!token || ocupado !== null" (click)="vaqueroPlata()" data-lab="vaquero-plata">Vaquero pide el dinero</button>
+        </div>
+        @for (e of resultados.seguridad; track $index) {
+          <ng-container *ngTemplateOutlet="panel; context: { $implicit: e }"></ng-container>
+        }
+      </section>
+
+      <!-- 5. PESAJE -->
+      <section class="card p-5 md:p-6 grid gap-4" data-lab-seccion="pesaje">
+        <div>
+          <h2 class="text-2xl font-bold m-0">5. Registrar un pesaje</h2>
+          <p class="ayuda m-0 mt-1">Escribe de verdad en la base de la demo{{ animal ? ', en el animal ' + animal.etiqueta : '' }}. La resiembra de las 4:30 lo borra.</p>
+        </div>
+        <div class="flex flex-wrap gap-3">
+          <button type="button" class="btn-secundario" [disabled]="!token || ocupado !== null" (click)="pesaje('nuevo')" data-lab="pesaje-nuevo">Guardar pesaje</button>
+          <button type="button" class="btn-secundario" [disabled]="!token || !uuidPesaje || ocupado !== null" (click)="pesaje('repetido')" data-lab="pesaje-repetido">Reenviar el mismo</button>
+          <button type="button" class="btn-secundario" [disabled]="!token || ocupado !== null" (click)="pesaje('invalido')" data-lab="pesaje-invalido">Peso de 5000 kg</button>
+        </div>
+        @for (e of resultados.pesaje; track $index) {
+          <ng-container *ngTemplateOutlet="panel; context: { $implicit: e }"></ng-container>
+        }
+      </section>
+
+      <!-- 6. CERRAR -->
+      <section class="card p-5 md:p-6 grid gap-4" data-lab-seccion="cierre">
+        <div>
+          <h2 class="text-2xl font-bold m-0">6. Cerrar la sesión</h2>
+          <p class="ayuda m-0 mt-1">Cierra la sesión y vuelve a intentar con el mismo token.</p>
+        </div>
+        <div>
+          <button type="button" class="btn-danger" [disabled]="!token || ocupado !== null" (click)="cerrarSesion()" data-lab="cerrar">Cerrar sesión y probar el token</button>
+        </div>
+        @for (e of resultados.cierre; track $index) {
+          <ng-container *ngTemplateOutlet="panel; context: { $implicit: e }"></ng-container>
+        }
+      </section>
+    }
+  </div>
+</main>
+
+<ng-template #panel let-e>
+  <article class="rounded-2xl border border-borde p-4 grid gap-3" data-lab-panel>
+    <div class="flex flex-wrap items-center gap-3">
+      <p class="m-0 font-bold">{{ e.titulo }}</p>
+      <span class="badge" [class.badge-success]="e.exito" [class.badge-danger]="!e.exito" data-lab-estado>{{ e.estado }} {{ e.textoEstado }}</span>
+      <span class="text-sm text-suave">{{ e.ms }} ms</span>
+    </div>
+    <div class="grid lg:grid-cols-2 gap-4">
+      <div class="min-w-0">
+        <p class="m-0 mb-1 font-semibold">Petición</p>
+        <pre class="m-0 p-3 rounded-xl bg-[#18211c] text-[#e6ede3] text-sm overflow-auto max-h-[28rem]"><b>{{ e.metodo }}</b> {{ e.urlCompleta }}
+@for (c of e.cabeceras; track c[0]) {{{ c[0] }}: {{ c[1] }}
+}@if (e.cuerpo) {
+{{ e.cuerpo }}}</pre>
+      </div>
+      <div class="min-w-0">
+        <p class="m-0 mb-1 font-semibold">Respuesta</p>
+        <pre class="m-0 p-3 rounded-xl bg-[#18211c] text-[#e6ede3] text-sm overflow-auto max-h-[28rem]" data-lab-respuesta><b>HTTP {{ e.estado }} {{ e.textoEstado }}</b>
+Content-Type: {{ e.tipoContenido }}
+
+{{ e.verCompleta ? e.respuesta : e.respuestaCorta }}</pre>
+        @if (e.esLarga) {
+          <button type="button" class="mt-2 text-sm font-semibold text-primario-texto bg-transparent border-0 p-0 cursor-pointer" (click)="e.verCompleta = !e.verCompleta">{{ e.verCompleta ? 'Ver menos' : 'Ver respuesta completa' }}</button>
+        }
+      </div>
+    </div>
+    @if (e.funcion) {
+      <p class="m-0 text-sm"><b>Función que ejecuta:</b>&nbsp;<code class="break-all">{{ e.funcion }}</code></p>
+    }
+    @if (e.explicacion) {
+      <p class="m-0">{{ e.explicacion }}</p>
+    }
+  </article>
+</ng-template>
